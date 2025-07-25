@@ -59,6 +59,8 @@ jobs:
         uses: ublue-os/container-storage-action@main
         with:
           target-dir: /tmp/ubluecontainers
+        env:
+          DISABLE_SYSTEMD_MOUNT: "true"
 
       - name: Get current date
         id: date
