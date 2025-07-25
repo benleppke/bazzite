@@ -54,6 +54,9 @@ jobs:
 
       - name: Mount BTRFS for podman storage
         uses: ublue-os/container-storage-action@main
+        with:
+          BTRFS_TARGET_DIR: /home/runner/.local/share/containers
+
 
       - name: Get current date
         id: date
