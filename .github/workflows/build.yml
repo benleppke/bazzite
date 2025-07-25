@@ -121,7 +121,6 @@ jobs:
         with:
           containerfiles: |
             ${{ env.FLAVOR_DIR }}/Containerfile
-          context: ${{ env.FLAVOR_DIR }}
           image: ${{ env.IMAGE_NAME }}
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
