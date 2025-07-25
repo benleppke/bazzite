@@ -55,17 +55,15 @@ jobs:
       - name: Create Btrfs target directory
         run: mkdir -p /tmp/ubluecontainers
 
-      - name: Debug env var
-        run: echo "DISABLE_SYSTEMD_MOUNT=$DISABLE_SYSTEMD_MOUNT"
-        env:
-          DISABLE_SYSTEMD_MOUNT: "true"
+      - name: Create and mount Btrfs loopback for podman storage
+        run: |
+          fallocate -l 20G /tmp/btrfs-volume.img
+          mkfs.btrfs /tmp/btrfs-volume.img
+          mkdir -p /tmp/ubluecontainers
+          sudo mount -o loop /tmp/btrfs-volume.img /tmp/ubluecontainers
 
-      - name: Mount BTRFS for podman storage
-        uses: ublue-os/container-storage-action@main
-        with:
-          target-dir: /tmp/ubluecontainers
-        env:
-          DISABLE_SYSTEMD_MOUNT: "true"
+      # - name: Mount BTRFS for podman storage
+      #   uses: ublue-os/container-storage-action@main
 
       - name: Get current date
         id: date
