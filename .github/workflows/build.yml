@@ -52,8 +52,18 @@ jobs:
       #   with:
       #     remove-codeql: true
 
-      - name: Mount BTRFS for podman storage
-        uses: ublue-os/container-storage-action@main
+      - name: Create Btrfs target directory
+        run: mkdir -p /tmp/ubluecontainers
+
+      - name: Create and mount Btrfs loopback for podman storage
+        run: |
+          fallocate -l 6G /tmp/btrfs-volume.img
+          mkfs.btrfs /tmp/btrfs-volume.img
+          mkdir -p /tmp/ubluecontainers
+          sudo mount -o loop /tmp/btrfs-volume.img /tmp/ubluecontainers
+
+      # - name: Mount BTRFS for podman storage
+      #   uses: ublue-os/container-storage-action@main
 
       - name: Get current date
         id: date
