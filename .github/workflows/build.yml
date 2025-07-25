@@ -53,12 +53,12 @@ jobs:
       #     remove-codeql: true
 
       - name: Create Btrfs target directory
-        run: mkdir -p /tmp/ublue-containers
+        run: mkdir -p /tmp/ubluecontainers
 
       - name: Mount BTRFS for podman storage
         uses: ublue-os/container-storage-action@main
         with:
-          target-dir: /tmp/ublue-containers
+          target-dir: /tmp/ubluecontainers
 
       - name: Get current date
         id: date
