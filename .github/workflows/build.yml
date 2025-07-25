@@ -121,7 +121,7 @@ jobs:
         with:
           containerfiles: |
             ${{ env.FLAVOR_DIR }}/Containerfile
-          image: ${{ env.IMAGE_NAME }}
+          image: bazzite-${{ env.IMAGE_NAME }}
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
           oci: false
