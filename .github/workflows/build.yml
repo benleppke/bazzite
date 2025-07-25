@@ -55,6 +55,11 @@ jobs:
       - name: Create Btrfs target directory
         run: mkdir -p /tmp/ubluecontainers
 
+      - name: Debug env var
+        run: echo "DISABLE_SYSTEMD_MOUNT=$DISABLE_SYSTEMD_MOUNT"
+        env:
+          DISABLE_SYSTEMD_MOUNT: "true"
+
       - name: Mount BTRFS for podman storage
         uses: ublue-os/container-storage-action@main
         with:
