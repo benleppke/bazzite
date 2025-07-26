@@ -32,7 +32,7 @@ jobs:
 
     strategy:
       matrix:
-        flavor: [bazzite-gnome, bazzite-gnome-nvidia]
+        flavor: [bazzite-gnome, bazzite-gnome-nvidia, bazzite-gnome-deck]
 
     env:
       FLAVOR_DIR: images/${{ matrix.flavor }}
