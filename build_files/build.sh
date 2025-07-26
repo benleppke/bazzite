@@ -39,6 +39,9 @@ systemctl enable podman.socket
 
 systemctl enable docker.socket
 
+# Set up Homebrew environment
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+
 brew install \
   bat \
   eza \
