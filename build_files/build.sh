@@ -2,6 +2,10 @@
 
 set -ouex pipefail
 
+# Avoid GPG errors when dnf5 tries to import keys
+export GNUPGHOME=/tmp/gnupg
+mkdir -p "$GNUPGHOME"
+
 ### Install packages
 
 dnf5 install -y \
@@ -26,12 +30,11 @@ dnf5 install -y \
 
 dnf5 install -y \
   android-tools \
-  yt-dlp \
-  tmux
+  yt-dlp
 
-dnf5 copr enable tcg/vscodium
-dnf5 install -y codium
-dnf5 copr disable tcg/vscodium
+dnf5 install -y \
+  --enablerepo=vscodium \
+    codium
 
 systemctl enable podman.socket
 
