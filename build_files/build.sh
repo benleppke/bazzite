@@ -12,8 +12,6 @@ dnf5 install -y \
   zsh \
   zsh-autosuggestions
 
-cp /ctx/yum.repos.d/docker-ce.repo /etc/yum.repos.d/docker-ce.repo
-
 dnf5 install -y \
   --enablerepo=docker-ce \
   containerd.io \
