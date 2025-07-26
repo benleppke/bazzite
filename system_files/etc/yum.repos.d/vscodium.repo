@@ -1,5 +1,5 @@
-[gitlab.com_paulcarroty_vscodium_repo]
-name=gitlab.com_paulcarroty_vscodium_repo
+[vscodium]
+name=vscodium
 baseurl=https://paulcarroty.gitlab.io/vscodium-deb-rpm-repo/rpms/
 enabled=0
 gpgcheck=1
