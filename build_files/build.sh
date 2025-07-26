@@ -2,15 +2,24 @@
 
 set -ouex pipefail
 
+# Avoid GPG errors when dnf5 tries to import keys
+export GNUPGHOME=/tmp/gnupg
+mkdir -p "$GNUPGHOME"
+chmod 700 "$GNUPGHOME"
+
 ### Install packages
 
-# Packages can be installed from any enabled yum repo on the image.
-# RPMfusion repos are available by default in ublue main images
-# List of rpmfusion packages can be found here:
-# https://mirrors.rpmfusion.org/mirrorlist?path=free/fedora/updates/39/x86_64/repoview/index.html&protocol=https&redirect=1
+dnf5 install -y \
+  zsh \
+  zsh-autosuggestions
 
-# this installs a package from fedora repos
-dnf5 install -y tmux
+dnf5 install -y \
+  --enablerepo=docker-ce \
+  containerd.io \
+  docker-buildx-plugin \
+  docker-ce \
+  docker-ce-cli \
+  docker-compose-plugin
 
 dnf5 install -y \
   gnome-shell-extension-pop-shell \
@@ -18,15 +27,15 @@ dnf5 install -y \
   ocean-sound-theme \
   papirus-icon-theme-dark
 
-dnf5 install -y zsh
+dnf5 install -y \
+  android-tools \
+  htop \
+  yt-dlp
 
-# Use a COPR Example:
-#
-# dnf5 -y copr enable ublue-os/staging
-# dnf5 -y install package
-# Disable COPRs so they don't end up enabled on the final image:
-# dnf5 -y copr disable ublue-os/staging
-
-#### Example for enabling a System Unit File
+dnf5 install -y \
+  --enablerepo=vscodium \
+    codium
 
 systemctl enable podman.socket
+
+systemctl enable docker.socket
