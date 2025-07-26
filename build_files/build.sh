@@ -9,8 +9,16 @@ set -ouex pipefail
 # List of rpmfusion packages can be found here:
 # https://mirrors.rpmfusion.org/mirrorlist?path=free/fedora/updates/39/x86_64/repoview/index.html&protocol=https&redirect=1
 
-# this installs a package from fedora repos
-dnf5 install -y tmux
+dnf5 install -y \
+  zsh \
+  zsh-autosuggestions
+
+dnf5 install -y \
+  containerd.io \
+  docker-buildx-plugin \
+  docker-ce \
+  docker-ce-cli \
+  docker-compose-plugin
 
 dnf5 install -y \
   gnome-shell-extension-pop-shell \
@@ -18,14 +26,15 @@ dnf5 install -y \
   ocean-sound-theme \
   papirus-icon-theme-dark
 
-dnf5 install -y zsh
+dnf5 install -y \
+  yt-dlp \
+  tmux
 
-# Use a COPR Example:
-#
-# dnf5 -y copr enable ublue-os/staging
-# dnf5 -y install package
-# Disable COPRs so they don't end up enabled on the final image:
-# dnf5 -y copr disable ublue-os/staging
+dnf5 copr enable tcg/vscodium
+
+dnf5 install -y codium
+
+dnf5 copr disable tcg/vscodium
 
 #### Example for enabling a System Unit File
 
