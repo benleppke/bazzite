@@ -36,6 +36,4 @@ dnf5 install -y \
   --enablerepo=vscodium \
     codium
 
-systemctl enable podman.socket
-
 systemctl enable docker.socket
