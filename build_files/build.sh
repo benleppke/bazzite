@@ -5,6 +5,7 @@ set -ouex pipefail
 # Avoid GPG errors when dnf5 tries to import keys
 export GNUPGHOME=/tmp/gnupg
 mkdir -p "$GNUPGHOME"
+chmod 700 "$GNUPGHOME"
 
 ### Install packages
 
