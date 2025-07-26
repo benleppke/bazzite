@@ -22,6 +22,7 @@ dnf5 install -y \
   papirus-icon-theme-dark
 
 dnf5 install -y \
+  android-tools \
   yt-dlp \
   tmux
 
@@ -32,3 +33,11 @@ dnf5 copr disable tcg/vscodium
 systemctl enable podman.socket
 
 systemctl enable docker.socket
+
+brew install \
+  bat \
+  eza \
+  gh \
+  glab \
+  direnv
+
