@@ -29,6 +29,7 @@ dnf5 install -y \
 
 dnf5 install -y \
   android-tools \
+  htop \
   yt-dlp
 
 dnf5 install -y \
@@ -38,13 +39,3 @@ dnf5 install -y \
 systemctl enable podman.socket
 
 systemctl enable docker.socket
-
-# Set up Homebrew environment
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-
-brew install \
-  bat \
-  eza \
-  gh \
-  glab \
-  direnv
