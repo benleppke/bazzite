@@ -16,9 +16,9 @@ on:
 env:
   IMAGE_DESC: "Ben's Customized Bazzite Image"
   IMAGE_KEYWORDS: "bootc,ublue,universal-blue,bazzite"
-  IMAGE_LOGO_URL: "https://avatars.githubusercontent.com/u/120078124?s=200&v=4"  # Put your own image here for a fancy profile on https://artifacthub.io/!
-  IMAGE_NAME: "${{ github.event.repository.name }}"  # output image name, usually same as repo name
-  IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"  # do not edit
+  IMAGE_LOGO_URL: "https://benleppke-public.s3.us-east-1.amazonaws.com/ben.png"
+  IMAGE_NAME: "${{ github.event.repository.name }}"
+  IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"
   DEFAULT_TAG: "latest"
 
 concurrency:
