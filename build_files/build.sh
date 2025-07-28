@@ -7,6 +7,9 @@ export GNUPGHOME=/tmp/gnupg
 mkdir -p "$GNUPGHOME"
 chmod 700 "$GNUPGHOME"
 
+# Use a temporary dnf5 cache to prevent including /var/lib/dnf in the final image
+export DNF5_SYSTEM_CACHEDIR=/tmp/dnf-cache
+
 ### Install packages
 
 dnf5 install -y \
@@ -25,7 +28,8 @@ dnf5 install -y \
   gnome-shell-extension-pop-shell \
   gnome-shell-extension-pop-shell-shortcut-overrides \
   ocean-sound-theme \
-  papirus-icon-theme-dark
+  papirus-icon-theme-dark \
+  plymouth-plugin-script
 
 dnf5 install -y \
   android-tools \
