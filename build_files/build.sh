@@ -36,4 +36,6 @@ dnf5 install -y \
   --enablerepo=vscodium \
     codium
 
+groupadd -f docker
+
 systemctl enable docker.socket
