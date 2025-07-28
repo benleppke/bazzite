@@ -27,8 +27,6 @@ dnf5 install -y \
   ocean-sound-theme \
   papirus-icon-theme-dark
 
-plymouth-set-default-theme -R hexagon_dots_alt
-
 dnf5 install -y \
   android-tools \
   htop \
