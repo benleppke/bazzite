@@ -63,7 +63,6 @@ jobs:
       - name: Create Btrfs target directory
         run: mkdir -p /tmp/ubluecontainers
 
-
       - name: Mount BTRFS for container storage
         uses: ublue-os/container-storage-action@main
         with:
@@ -138,16 +137,17 @@ jobs:
           labels: ${{ steps.metadata.outputs.labels }}
           oci: false
 
-      - name: Export image to OCI archive (rootless)
+      - name: Ensure rootful podman uses same storage
         run: |
-          TAG="${{ fromJSON(steps.metadata.outputs.json).tags[0] }}"
-          buildah push "${{ env.IMAGE_NAME }}:$TAG" \
-            "oci-archive:/tmp/${{ env.IMAGE_NAME }}-$TAG.oci:localhost/${{ env.IMAGE_NAME }}:$TAG"
+          if [ -n "${CONTAINERS_STORAGE_CONF:-}" ] && [ -f "$CONTAINERS_STORAGE_CONF" ]; then
+            sudo mkdir -p /etc/containers
+            sudo cp "$CONTAINERS_STORAGE_CONF" /etc/containers/storage.conf
+          fi
 
-      - name: Load image into rootful podman
+      - name: Tag local image for rechunk
         run: |
           TAG="${{ fromJSON(steps.metadata.outputs.json).tags[0] }}"
-          sudo podman load -i "/tmp/${{ env.IMAGE_NAME }}-$TAG.oci"
+          podman tag "${{ env.IMAGE_NAME }}:$TAG" "localhost/${{ env.IMAGE_NAME }}:$TAG"
 
       # Rechunk is a script that we use on Universal Blue to make sure there isnt a single huge layer when your image gets published.
       # This does not make your image faster to download, just provides better resumability and fixes a few errors.
