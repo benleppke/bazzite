@@ -26,6 +26,7 @@ answer_spr = [];
 prompt_spr = [];
 message_spr = [];
 bullet_spr = [];
+flyingman_image = [];
 
 //--------------------------------- Refresh (Logo animation) --------------------------
 
