@@ -60,14 +60,16 @@ jobs:
         with:
           remove-codeql: true
 
+      - name: Create Btrfs target directory
+        run: mkdir -p /tmp/ubluecontainers
+
+
       - name: Mount BTRFS for container storage
         uses: ublue-os/container-storage-action@main
         with:
-          driver: btrfs
-          size: 12G
-
-      # - name: Create Btrfs target directory
-      #   run: mkdir -p /tmp/ubluecontainers
+          target-dir: /tmp/ubluecontainers
+          mount-opts: compress=zstd:3,noatime
+          loopback-free: 0.7
 
       # - name: Create and mount Btrfs loopback for podman storage
       #   run: |
