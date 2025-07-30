@@ -65,7 +65,7 @@ jobs:
 
       - name: Create and mount Btrfs loopback for podman storage
         run: |
-          fallocate -l 6G /tmp/btrfs-volume.img
+          fallocate -l 10G /tmp/btrfs-volume.img
           mkfs.btrfs /tmp/btrfs-volume.img
           mkdir -p /tmp/ubluecontainers
           sudo mount -o loop /tmp/btrfs-volume.img /tmp/ubluecontainers
