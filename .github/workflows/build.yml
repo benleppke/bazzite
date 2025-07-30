@@ -85,7 +85,7 @@ jobs:
       # Image metadata for https://artifacthub.io/ - This is optional but is highly recommended so we all can get a index of all the custom images
       # The metadata by itself is not going to do anything, you choose if you want your image to be on ArtifactHub or not.
       - name: Image Metadata
-        uses: docker/metadata-action@902fa8e...
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5
         id: metadata
         with:
           tags: |
@@ -165,7 +165,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push To GHCR
-        uses: redhat-actions/push-to-registry@5ed88d2...
+        uses: redhat-actions/push-to-registry@5ed88d269cf581ea9ef6dd6806d01562096bee9c # v2
         if: github.event_name != 'pull_request'
         id: push
         with:
