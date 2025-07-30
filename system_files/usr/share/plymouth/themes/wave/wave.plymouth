@@ -1,9 +1,0 @@
-[Plymouth Theme]
-Name=wave
-Description=display wave
-Comment=created By Ben
-ModuleName=script
-
-[script]
-ImageDir=/usr/share/plymouth/themes/wave
-ScriptFile=/usr/share/plymouth/themes/wave/wave.script
