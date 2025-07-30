@@ -19,6 +19,14 @@ bullet.image = Image.Text("*", 1, 1, 1);
 state.status = "play";
 state.time = 0.0;
 
+// initalize arrays
+spr = [];
+question_spr = [];
+answer_spr = [];
+prompt_spr = [];
+message_spr = [];
+bullet_spr = [];
+
 //--------------------------------- Refresh (Logo animation) --------------------------
 
 # --- gather frames once
@@ -59,24 +67,14 @@ fun center_x_for_width_on_display(w, d) {
   return Window.GetX(d) + (Window.GetWidth(d) - w) / 2;
 }
 
-# Storage for per-display sprites
-question_spr = null;
-answer_spr   = null;
-prompt_spr   = null;
-bullet_spr   = null;   # 2‑D: bullet_spr[d][i]
-message_spr  = null;
-
 # -------------------------------- Question --------------------------------
 fun DisplayQuestionCallback(prompt, entry) {
-  question = null; answer = null;
+  question_spr = [];
+  answer_spr   = [];
   if (entry == "") entry = "<answer>";
 
   question.image = Image.Text(prompt, 1, 1, 1);
   answer.image   = Image.Text(entry,  1, 1, 1);
-
-  # clear old sprites
-  question_spr = null;
-  answer_spr   = null;
 
   for (d = 0; d < num_displays; d++) {
     question_spr[d] = center_sprite_on_display(question.image, d, 4);  # 4*line height from bottom
@@ -93,18 +91,17 @@ fun DisplayPasswordCallback(nil, bulletCount) {
   prompt.image = Image.Text("Enter Password", 1, 1, 1);
 
   # clear old prompt/bullets
-  prompt_spr = null;
-  bullet_spr = null;
+  prompt_spr = [];
+  bullet_spr = [];
 
   for (d = 0; d < num_displays; d++) {
-    # prompt centered
     prompt_spr[d] = center_sprite_on_display(prompt.image, d, 4);
 
-    # bullets: centered row on each display
     totalWidth = bulletCount * bullet.image.GetWidth();
     startX = center_x_for_width_on_display(totalWidth, d);
     baseY  = Window.GetY(d) + Window.GetHeight(d) - 2 * bullet.image.GetHeight();
 
+    bullet_spr[d] = [];
     for (i = 0; i < bulletCount; i++) {
       bullet_spr[d][i] = Sprite(bullet.image);
       bullet_spr[d][i].SetX(startX + i * bullet.image.GetWidth());
@@ -118,8 +115,16 @@ Plymouth.SetDisplayPasswordFunction(DisplayPasswordCallback);
 # ------------------------------- Normal/clear ------------------------------
 fun DisplayNormalCallback() {
   state.status = "play";
-  bullets = null; prompt = null; message = null; question = null; answer = null;
-  question_spr = null; answer_spr = null; prompt_spr = null; bullet_spr = null; message_spr = null;
+  bullets = null;
+  prompt = null;
+  message = null;
+  question = null;
+  answer = null;
+  question_spr = [];
+  answer_spr   = [];
+  prompt_spr   = [];
+  bullet_spr   = [];
+  message_spr  = [];
 }
 
 Plymouth.SetDisplayNormalFunction(DisplayNormalCallback);
@@ -129,7 +134,7 @@ fun MessageCallback(text) {
   message.image = Image.Text(text, 1, 1, 1);
 
   # clear old
-  message_spr = null;
+  message_spr = [];
 
   for (d = 0; d < num_displays; d++) {
     s = Sprite(message.image);
