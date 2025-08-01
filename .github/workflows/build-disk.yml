@@ -10,6 +10,7 @@ on:
         default: false
         type: boolean
       platform:
+        description: ""
         required: true
         type: choice
         options:
@@ -40,7 +41,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        disk-type: ["qcow2", "anaconda-iso"]
+        include:
+          - flavor: bazzite-gnome
+            disk-type: qcow2
+          - flavor: bazzite-gnome
+            disk-type: anaconda-iso
+          - flavor: bazzite-gnome-nvidia
+            disk-type: qcow2
+          - flavor: bazzite-gnome-nvidia
+            disk-type: anaconda-iso
+          - flavor: bazzite-deck-gnome
+            disk-type: qcow2
+          - flavor: bazzite-deck-gnome
+            disk-type: anaconda-iso
+
     permissions:
       contents: read
       packages: read
@@ -78,13 +92,12 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Build disk images
-        id: build
         uses: osbuild/bootc-image-builder-action@main
         with:
-          builder-image: ${{ env.BIB_IMAGE }}
-          config-file: ${{ matrix.disk-type == 'anaconda-iso' && './disk_config/iso.toml' || './disk_config/disk.toml' }}
-          image: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}
-          chown: ${{ env.USER_UID }}:${{ env.USER_GID }}
+          builder-image:  ${{ env.BIB_IMAGE }}
+          config-file: ${{ matrix.disk-type == 'anaconda-iso' && format('images/{0}/iso.toml', matrix.flavor) || format('images/{0}/disk.toml', matrix.flavor) }}
+          image: ghcr.io/YOUR_GH_USER/${{ env.IMAGE_NAME }}:latest
+          chown: 1000:1000  # optionally dynamic
           types: ${{ matrix.disk-type }}
           additional-args: --use-librepo=True
 
