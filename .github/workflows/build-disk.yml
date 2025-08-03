@@ -109,24 +109,24 @@ jobs:
           types: ${{ matrix.disk-type }}
           additional-args: --use-librepo=True
 
-      - name: Find where the ISO landed
-        run: |
-          echo "Looking for output files..."
-          find . -type f -iname '*.iso'
+      # - name: Find where the ISO landed
+      #   run: |
+      #     echo "Looking for output files..."
+      #     find . -type f -iname '*.iso'
 
-      - name: Rename ISO
-        run: |
-          ISO=$(find . -name 'install.iso')
-          echo "Found ISO at $ISO"
-          mkdir -p artifacts
-          mv "$ISO" "artifacts/${{ matrix.flavor }}-${{ matrix.disk-type }}.iso"
+      # - name: Rename ISO
+      #   run: |
+      #     ISO=$(find . -name 'install.iso')
+      #     echo "Found ISO at $ISO"
+      #     mkdir -p artifacts
+      #     mv "$ISO" "artifacts/${{ matrix.flavor }}-${{ matrix.disk-type }}.iso"
 
       - name: Upload disk images and Checksum to Job Artifacts
         if: inputs.upload-to-s3 != true && github.event_name != 'pull_request'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ matrix.flavor }}-${{ matrix.disk-type }}
-          path: artifacts/${{ matrix.flavor }}-${{ matrix.disk-type }}.iso
+          path: ./output/bootiso/install.iso
           if-no-files-found: error
           retention-days: 0
           compression-level: 0
