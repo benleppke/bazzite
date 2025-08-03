@@ -109,8 +109,10 @@ jobs:
           types: ${{ matrix.disk-type }}
           additional-args: --use-librepo=True
 
-      - name: Rename ISO
-        run: mv artifacts/install.iso artifacts/${{ matrix.flavor }}-${{ matrix.disk-type }}.iso
+      - name: Copy ISO to artifacts dir
+        run: |
+          mkdir -p artifacts
+          cp /run/osbuild/tree/install.iso artifacts/${{ matrix.flavor }}-${{ matrix.disk-type }}.iso
 
       - name: Upload disk images and Checksum to Job Artifacts
         if: inputs.upload-to-s3 != true && github.event_name != 'pull_request'
