@@ -17,3 +17,6 @@ disable = [
   "org.fedoraproject.Anaconda.Modules.Subscription",
   "org.fedoraproject.Anaconda.Modules.Timezone"
 ]
+
+[output]
+filename = "bazzite-deck-gnome.iso"
