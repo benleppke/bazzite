@@ -109,10 +109,17 @@ jobs:
           types: ${{ matrix.disk-type }}
           additional-args: --use-librepo=True
 
-      - name: Copy ISO to artifacts dir
+      - name: Find where the ISO landed
         run: |
+          echo "Looking for output files..."
+          find . -type f -iname '*.iso'
+
+      - name: Rename ISO
+        run: |
+          ISO=$(find . -name 'install.iso')
+          echo "Found ISO at $ISO"
           mkdir -p artifacts
-          cp /run/osbuild/tree/install.iso artifacts/${{ matrix.flavor }}-${{ matrix.disk-type }}.iso
+          mv "$ISO" "artifacts/${{ matrix.flavor }}-${{ matrix.disk-type }}.iso"
 
       - name: Upload disk images and Checksum to Job Artifacts
         if: inputs.upload-to-s3 != true && github.event_name != 'pull_request'
