@@ -48,12 +48,12 @@ jobs:
             disk-type: anaconda-iso
           # - flavor: bazzite-gnome-nvidia
           #   disk-type: qcow2
-          - flavor: bazzite-gnome-nvidia
-            disk-type: anaconda-iso
+          # - flavor: bazzite-gnome-nvidia
+          #   disk-type: anaconda-iso
           # - flavor: bazzite-deck-gnome
           #   disk-type: qcow2
-          - flavor: bazzite-deck-gnome
-            disk-type: anaconda-iso
+          # - flavor: bazzite-deck-gnome
+          #   disk-type: anaconda-iso
 
     permissions:
       contents: read
