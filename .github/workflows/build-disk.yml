@@ -23,6 +23,8 @@ on:
       - './disk_config/disk.toml'
       - './disk_config/iso.toml'
       - './.github/workflows/build-disk.yml'
+  schedule:
+    - cron: '0 11 * * 0'  # 11:00am UTC sunday
 
 env:
   IMAGE_NAME: ${{ github.event.repository.name }} # output of build.yml, keep in sync
@@ -91,14 +93,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
-      # - name: Login to GitHub Container Registry
-      #   uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
-      #   if: github.event_name != 'pull_request'
-      #   with:
-      #     registry: ghcr.io
-      #     username: ${{ github.actor }}
-      #     password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Build disk images
         uses: osbuild/bootc-image-builder-action@main
         with:
@@ -108,11 +102,6 @@ jobs:
           chown: 1000:1000  # optionally dynamic
           types: ${{ matrix.disk-type }}
           additional-args: --use-librepo=True
-
-      # - name: Find where the ISO landed
-      #   run: |
-      #     echo "Looking for output files..."
-      #     find . -type f -iname '*.iso'
 
       # - name: Rename ISO
       #   run: |
@@ -131,7 +120,7 @@ jobs:
           retention-days: 0
           compression-level: 0
           overwrite: true
-      
+
       - name: Upload to S3
         if: inputs.upload-to-s3 == true && github.event_name != 'pull_request'
         shell: bash
