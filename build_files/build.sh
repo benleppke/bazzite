@@ -43,3 +43,6 @@ dnf5 install -y \
 groupadd -f docker
 
 systemctl enable docker.socket
+
+dnf5 install -y \
+  gnome-initial-setup
