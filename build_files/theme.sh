@@ -42,7 +42,7 @@ for COLOR in "${COLORS[@]}"; do
     done
   done
 
-  # Handle extra sizes that map to 64x64
+  # Handle sizes that symlink to 64x64
   for SIZE in "${EXTRA_SIZES[@]}"; do
     SRC_DIR="/usr/share/icons/Papirus/64x64/places"
     DEST_DIR="$TARGET_PATH/${SIZE}/places"
