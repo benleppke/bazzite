@@ -2,18 +2,12 @@
 
 set -e
 
-# Base icon theme
-BASE_THEME="Papirus-Dark"
-BASE_PATH="/usr/share/icons/$BASE_THEME"
+# Themes to create variants for
+BASE_THEMES=("Papirus-Dark" "Papirus-Light")
 TARGET_BASE="/usr/share/icons/"
 
-# Colors to create variants for
 COLORS=(blue teal green yellow orange red pink violet grey)
-
-# Source folder for folder icons
 SOURCE_SIZES=(22x22 24x24 32x32 48x48 64x64)
-
-# Sizes that should symlink to another size
 SIZE_SYMLINKS=(
   "16x16@2x=16x16"
   "18x18@2x=18x18"
@@ -26,54 +20,58 @@ SIZE_SYMLINKS=(
   "128x128=64x64"
 )
 
-for COLOR in "${COLORS[@]}"; do
-  NEW_THEME="${BASE_THEME}-${COLOR^}"
-  TARGET_PATH="$TARGET_BASE/$NEW_THEME"
-  echo "==> Creating theme: $NEW_THEME"
+for BASE_THEME in "${BASE_THEMES[@]}"; do
+  BASE_PATH="/usr/share/icons/$BASE_THEME"
 
-  mkdir -p "$TARGET_PATH"
-  echo "  - Copying index.theme to $TARGET_PATH"
-  cp "$BASE_PATH/index.theme" "$TARGET_PATH/index.theme"
-  sed -i "s/^Name=.*/Name=$NEW_THEME/" "$TARGET_PATH/index.theme"
-  sed -i "s/^Inherits=.*/Inherits=$BASE_THEME/" "$TARGET_PATH/index.theme"
+  for COLOR in "${COLORS[@]}"; do
+    NEW_THEME="${BASE_THEME}-${COLOR^}"
+    TARGET_PATH="$TARGET_BASE/$NEW_THEME"
+    echo "==> Creating theme: $NEW_THEME"
 
-  # Handle real-size directories
-  for SIZE in "${SOURCE_SIZES[@]}"; do
-    SRC_DIR="/usr/share/icons/Papirus/${SIZE}/places"
-    DEST_DIR="$TARGET_PATH/${SIZE}/places"
-    echo "  - Linking icons for size: $SIZE"
+    mkdir -p "$TARGET_PATH"
+    echo "  - Copying index.theme to $TARGET_PATH"
+    cp "$BASE_PATH/index.theme" "$TARGET_PATH/index.theme"
+    sed -i "s/^Name=.*/Name=$NEW_THEME/" "$TARGET_PATH/index.theme"
+    sed -i "s/^Inherits=.*/Inherits=$BASE_THEME/" "$TARGET_PATH/index.theme"
 
-    mkdir -p "$DEST_DIR"
+    # Handle real-size directories
+    for SIZE in "${SOURCE_SIZES[@]}"; do
+      SRC_DIR="/usr/share/icons/Papirus/${SIZE}/places"
+      DEST_DIR="$TARGET_PATH/${SIZE}/places"
+      echo "  - Linking icons for size: $SIZE"
 
-    for icon in "$SRC_DIR"/*-${COLOR}-*.svg "$SRC_DIR"/folder-${COLOR}.svg; do
-      base_name=$(basename "$icon" | sed "s/folder-${COLOR}-/folder-/")
-      target_icon="$DEST_DIR/$base_name"
+      mkdir -p "$DEST_DIR"
 
-      echo "    • $base_name → $icon"
-      ln -sf "$icon" "$target_icon"
+      for icon in "$SRC_DIR"/*-${COLOR}-*.svg "$SRC_DIR"/folder-${COLOR}.svg; do
+        base_name=$(basename "$icon" | sed "s/folder-${COLOR}-/folder-/")
+        target_icon="$DEST_DIR/$base_name"
+
+        echo "    • $base_name → $icon"
+        ln -sf "$icon" "$target_icon"
+      done
     done
-  done
 
-  # Handle symlinked sizes
-  for mapping in "${SIZE_SYMLINKS[@]}"; do
-    SIZE="${mapping%%=*}"
-    SRC_SIZE="${mapping##*=}"
+    # Handle symlinked sizes
+    for mapping in "${SIZE_SYMLINKS[@]}"; do
+      SIZE="${mapping%%=*}"
+      SRC_SIZE="${mapping##*=}"
 
-    SRC_DIR="/usr/share/icons/Papirus/${SRC_SIZE}/places"
-    DEST_DIR="$TARGET_PATH/${SIZE}/places"
+      SRC_DIR="/usr/share/icons/Papirus/${SRC_SIZE}/places"
+      DEST_DIR="$TARGET_PATH/${SIZE}/places"
 
-    echo "  - Linking $SIZE from $SRC_SIZE"
+      echo "  - Linking $SIZE from $SRC_SIZE"
 
-    mkdir -p "$DEST_DIR"
+      mkdir -p "$DEST_DIR"
 
-    for icon in "$SRC_DIR"/folder-${COLOR}-*.svg "$SRC_DIR"/folder-${COLOR}.svg; do
-      base_name=$(basename "$icon" | sed "s/folder-${COLOR}-/folder-/")
-      target_icon="$DEST_DIR/$base_name"
+      for icon in "$SRC_DIR"/folder-${COLOR}-*.svg "$SRC_DIR"/folder-${COLOR}.svg; do
+        base_name=$(basename "$icon" | sed "s/folder-${COLOR}-/folder-/")
+        target_icon="$DEST_DIR/$base_name"
 
-      echo "    • $base_name → $icon"
-      ln -sf "$icon" "$target_icon"
+        echo "    • $base_name → $icon"
+        ln -sf "$icon" "$target_icon"
+      done
     done
   done
 done
 
-echo "$BASE_THEME themes created successfully."
+echo "Themes created successfully."
