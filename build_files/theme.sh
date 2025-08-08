@@ -33,7 +33,7 @@ for COLOR in "${COLORS[@]}"; do
 
     mkdir -p "$DEST_DIR"
 
-    for icon in "$SRC_DIR"/folder-${COLOR}-*.svg; do
+    for icon in "$SRC_DIR"/*-${COLOR}-*.svg "$SRC_DIR"/folder-${COLOR}.svg; do
       base_name=$(basename "$icon" | sed "s/folder-${COLOR}-/folder-/")
       target_icon="$DEST_DIR/$base_name"
 
