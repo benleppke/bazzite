@@ -12,7 +12,19 @@ COLORS=(blue teal green yellow orange red pink violet grey)
 
 # Source folder for folder icons
 SOURCE_SIZES=(22x22 24x24 32x32 48x48 64x64)
-EXTRA_SIZES=(96x96 128x128) # Will reuse 64x64 icons
+
+# Sizes that should symlink to another size
+SIZE_SYMLINKS=(
+  "16x16@2x=16x16"
+  "18x18@2x=18x18"
+  "22x22@2x=22x22"
+  "24x24@2x=24x24"
+  "32x32@2x=32x32"
+  "48x48@2x=48x48"
+  "64x64@2x=64x64"
+  "96x96=64x64"
+  "128x128=64x64"
+)
 
 for COLOR in "${COLORS[@]}"; do
   NEW_THEME="${BASE_THEME}-${COLOR^}"
@@ -42,15 +54,19 @@ for COLOR in "${COLORS[@]}"; do
     done
   done
 
-  # Handle sizes that symlink to 64x64
-  for SIZE in "${EXTRA_SIZES[@]}"; do
-    SRC_DIR="/usr/share/icons/Papirus/64x64/places"
+  # Handle symlinked sizes
+  for mapping in "${SIZE_SYMLINKS[@]}"; do
+    SIZE="${mapping%%=*}"
+    SRC_SIZE="${mapping##*=}"
+
+    SRC_DIR="/usr/share/icons/Papirus/${SRC_SIZE}/places"
     DEST_DIR="$TARGET_PATH/${SIZE}/places"
-    echo "  - Linking extra size ($SIZE) from 64x64 source"
+
+    echo "  - Linking $SIZE from $SRC_SIZE"
 
     mkdir -p "$DEST_DIR"
 
-    for icon in "$SRC_DIR"/folder-${COLOR}-*.svg; do
+    for icon in "$SRC_DIR"/folder-${COLOR}-*.svg "$SRC_DIR"/folder-${COLOR}.svg; do
       base_name=$(basename "$icon" | sed "s/folder-${COLOR}-/folder-/")
       target_icon="$DEST_DIR/$base_name"
 
