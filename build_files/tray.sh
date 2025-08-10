@@ -2,13 +2,17 @@
 set -e
 
 dnf5 install -y \
-  python3-meson-python
+  python3-meson-python \
+  meson \
+  ninja-build \
+  gobject-introspection-devel \
+  librsvg2-tools
 
 git clone https://github.com/bil-elmoussaoui/Hardcode-Tray.git
 
 cd Hardcode-Tray
 
-meson builddir --prefix=/usr
+meson setup builddir --prefix=/usr
 
 ninja -C builddir install
 
