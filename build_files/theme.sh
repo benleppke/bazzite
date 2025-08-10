@@ -34,6 +34,14 @@ process_size() {
     target_icon="$DEST_DIR/$base_name"
     echo "    • $base_name → $icon"
     ln -sf "$icon" "$target_icon"
+
+    # Handle special cases
+    if [[ "$base_name" == "folder-public.svg" ]]; then
+      src_icon="/usr/share/icons/Papirus/${SRC_SIZE}/places/folder-${COLOR}-public.svg"
+      ln -sf "$src_icon" "$DEST_DIR/folder-publicshare.svg"
+      echo "    • Also: folder-publicshare.svg → $src_icon"
+    fi
+
   done
 }
 
@@ -58,13 +66,6 @@ for BASE_THEME in "${BASE_THEMES[@]}"; do
     # Symlinked sizes
     for mapping in "${SIZE_SYMLINKS[@]}"; do
       process_size "${mapping##*=}" "${mapping%%=*}"
-    done
-
-    # Fix: folder-publicshare.svg → folder-public-<color>.svg for every size
-    for SIZE in "${SOURCE_SIZES[@]}" "${SIZE_SYMLINKS[@]%%=*}"; do
-      DEST_DIR="$TARGET_PATH/$SIZE/places"
-      mkdir -p "$DEST_DIR"
-      ln -sf "folder-public-${COLOR}.svg" "$DEST_DIR/folder-publicshare.svg"
     done
 
   done
