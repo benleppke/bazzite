@@ -59,6 +59,14 @@ for BASE_THEME in "${BASE_THEMES[@]}"; do
     for mapping in "${SIZE_SYMLINKS[@]}"; do
       process_size "${mapping##*=}" "${mapping%%=*}"
     done
+
+    # Fix: folder-publicshare.svg → folder-public-<color>.svg for every size
+    for SIZE in "${SOURCE_SIZES[@]}" "${SIZE_SYMLINKS[@]%%=*}"; do
+      DEST_DIR="$TARGET_PATH/$SIZE/places"
+      mkdir -p "$DEST_DIR"
+      ln -sf "folder-public-${COLOR}.svg" "$DEST_DIR/folder-publicshare.svg"
+    done
+
   done
 done
 
