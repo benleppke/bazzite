@@ -2,7 +2,6 @@
 set -e
 shopt -s nullglob
 
-# Themes to create variants for
 BASE_THEMES=("Papirus-Dark" "Papirus-Light")
 TARGET_BASE="/usr/share/icons"
 
