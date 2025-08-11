@@ -36,7 +36,7 @@ class CustomIconNameProvider(GObject.GObject, Nautilus.InfoProvider):
     def __init__(self):
         super().__init__()
         self._cache = {}
-        logging.debug(f"Nautilus Custom Icon Name initialized (extension path: {__file__})")
+        # logging.debug(f"Nautilus Custom Icon Name initialized (extension path: {__file__})")
 
     def _get_cached(self, path):
         ent = self._cache.get(path)
@@ -82,40 +82,14 @@ class CustomIconNameProvider(GObject.GObject, Nautilus.InfoProvider):
             display = Gdk.Display.get_default()
             theme = Gtk.IconTheme.get_for_display(display)
 
-            fallbacks = ["folder", None]  # fallback icons
             size = 48
             scale = 1
             direction = Gtk.TextDirection.LTR
             flags = 0
 
-            icon_paintable = theme.lookup_icon(
-                icon_name,
-                fallbacks,
-                size,
-                scale,
-                direction,
-                flags
-            )
-
-            icon_paintable = theme.lookup_icon(icon_name, None, size, scale, Gtk.TextDirection.LTR, 0)
-            if icon_paintable:
+            icon_obj = theme.lookup_icon(icon_name, None, size, scale, direction, flags)
+            if icon_obj:
                 logging.debug(f"Icon '{icon_name}' found in current icon theme.")
-
-                try:
-                    # log the file path of the discovered icon if possible
-                    file_path = None
-                    if hasattr(icon_paintable, 'get_file'):
-                        file = icon_paintable.get_file()
-                        if file:
-                            file_path = file.get_path()
-                    
-                    if file_path:
-                        logging.debug(f"Icon path: {file_path}")
-                    else:
-                        logging.debug("Icon path not available from GtkIconPaintable.")
-                except Exception as e:
-                    logging.debug(f"Could not get icon file path: {e}")
-
                 return Gio.ThemedIcon.new(icon_name)
             else:
                 logging.debug(f"Icon '{icon_name}' NOT found in current icon theme.")
