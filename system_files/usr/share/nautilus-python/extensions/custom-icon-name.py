@@ -38,22 +38,24 @@ class CustomIconNameProvider(GObject.GObject, Nautilus.InfoProvider):
 
     def __init__(self):
         super().__init__()
-        logging.debug(f"Nautilus Custom Icon Name initialized (extension path: {__file__})")
+        logging.debug(f"Extension initialized: {__file__})")
 
     def _get_cached(self, path):
         ent = self._cache.get(path)
         if not ent:
-            logging.debug(f"No cache entry for {path}")
+            logging.debug(f"No cached icon available for {path}, checking theme...")
             return None
         if time.time() - ent.ts > cache_ttl:
-            logging.debug(f"Cache expired for {path}")
+            logging.debug(f"Cached icon expired for {path}, removing entry from cache")
             self._cache.pop(path, None)
             return None
-        logging.debug(f"Cache hit for {path}, returning icon")
+        logging.debug(f"Cached icon for {path} found, returning icon from cache")
         return ent.icon
 
     def _set_cache(self, path, themed_icon):
-        logging.debug(f"Setting cache for {path} -> {getattr(themed_icon, 'names', themed_icon)}")
+        icon_names = themed_icon.get_names() if hasattr(themed_icon, "get_names") else []
+        icon_name = icon_names[0] if icon_names else None
+        logging.debug(f"Caching '{icon_name}' for {path}")
         self._cache[path] = _IconCacheEntry(themed_icon)
 
     def _read_custom_icon_name(self, gio_file):\
@@ -76,7 +78,7 @@ class CustomIconNameProvider(GObject.GObject, Nautilus.InfoProvider):
 
         if name:
             name = name.strip()
-            logging.debug("Found metadata::custom-icon-name for %s: %s", gio_file.get_path(), name)
+            logging.debug("Custom icon metadata found for %s, '%s' icon requested", gio_file.get_path(), name)
             return name
         return None
 
@@ -93,10 +95,10 @@ class CustomIconNameProvider(GObject.GObject, Nautilus.InfoProvider):
 
             icon_obj = theme.lookup_icon(icon_name, None, size, scale, direction, flags)
             if icon_obj:
-                logging.debug(f"Icon '{icon_name}' found in current icon theme.")
+                logging.debug(f"Icon matching '{icon_name}' found in theme, returning icon")
                 return Gio.ThemedIcon.new(icon_name)
             else:
-                logging.debug(f"Icon '{icon_name}' NOT found in current icon theme.")
+                logging.debug(f"Icon matching '{icon_name}' NOT found in theme")
 
         except Exception as e:
             logging.error(f"Error looking up icon {icon_name}: {e}")
@@ -141,7 +143,7 @@ class CustomIconNameProvider(GObject.GObject, Nautilus.InfoProvider):
             logging.debug(f"Using cached icon for {path}")
             return
 
-        logging.debug(f"Cache miss for {path}, resolving icon...")
+        # logging.debug(f"Resolving icon for {path}...")
         themed_icon = self._resolve_themed_icon(icon_name)
         if not themed_icon:
             logging.debug("No themed icon resolved for %s on %s", icon_name, path)
