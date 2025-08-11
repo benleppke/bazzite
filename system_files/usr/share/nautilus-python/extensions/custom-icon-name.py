@@ -152,3 +152,93 @@ class CustomIconNameProvider(GObject.GObject, Nautilus.InfoProvider):
         # cache and return
         self._set_cache(path, themed_icon)
         file.set_icon(themed_icon)
+
+class CustomIconNameExtension(GObject.GObject, Nautilus.MenuProvider):
+    def __init__(self):
+        super().__init__()
+        logging.debug(f"CustomIconNameExtension initialized: {__file__})")
+
+    def get_file_items(self, window, files):
+        if len(files) != 1:
+            return
+        f = files[0]
+        if not f.is_directory():
+            return
+
+        # Main menu item with submenu
+        main_item = Nautilus.MenuItem(
+            name="CustomIconNameExtension::SetIcon",
+            label="Set folder icon",
+            tip="Choose a custom icon for this folder"
+        )
+        submenu = Nautilus.Menu()
+        main_item.set_submenu(submenu)
+
+        icons = [
+            "folder-biohazard",
+            "folder-bong",
+            "folder-burger",
+            "folder-crow",
+            "folder-cube",
+            "folder-hat-wizard",
+        ]
+
+        for icon_name in icons:
+            subitem = Nautilus.MenuItem(
+                name=f"CustomIconNameExtension::SetIcon::{icon_name}",
+                label=icon_name,
+            )
+            subitem.connect("activate", self._icon_chosen, f, icon_name)
+            submenu.append_item(subitem)
+
+        return [main_item]
+
+    def _icon_chosen(self, menu, file, icon_name):
+        folder_path = file.get_location().get_path()
+        logging.debug(f"Icon '{icon_name}' chosen for folder {folder_path}")
+
+        gio_file = Gio.File.new_for_path(folder_path)
+        try:
+            info = gio_file.query_info("metadata::custom-icon-name", Gio.FileQueryInfoFlags.NONE, None)
+            info.set_attribute_string("metadata::custom-icon-name", icon_name)
+            gio_file.set_attributes_from_info(info, Gio.FileQueryInfoFlags.NONE, None)
+            logging.debug(f"Set metadata::custom-icon-name='{icon_name}' for {folder_path}")
+        except Exception as e:
+            logging.error(f"Failed to set custom icon metadata: {e}")
+
+import gi
+gi.require_version("Nautilus", "4.0")
+from gi.repository import Nautilus, GObject, Gio
+from urllib.parse import unquote
+
+class CustomIconPropertiesModel(GObject.GObject, Nautilus.PropertiesModelProvider):
+    def get_models(self, files):
+        if len(files) != 1:
+            return []
+        file = files[0]
+        if file.get_uri_scheme() != "file":
+            return []
+
+        path = unquote(file.get_uri()[7:])
+        gio_file = Gio.File.new_for_path(path)
+
+        try:
+            info = gio_file.query_info("metadata::custom-icon-name", Gio.FileQueryInfoFlags.NONE, None)
+            icon_name = info.get_attribute_string("metadata::custom-icon-name") or ""
+        except Exception:
+            icon_name = ""
+
+        section_model = Gio.ListStore.new(item_type=Nautilus.PropertiesItem)
+        section_model.append(
+            Nautilus.PropertiesItem(
+                name="Custom Folder Icon",
+                value=icon_name,
+            )
+        )
+
+        return [
+            Nautilus.PropertiesModel(
+                title="Custom Icon",
+                model=section_model
+            )
+        ]
