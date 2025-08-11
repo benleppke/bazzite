@@ -4,24 +4,28 @@
 # Nautilus extension to honor metadata::custom-icon-name by resolving it
 # against the current icon theme and returning a Gio.ThemedIcon.
 #
-# Logs go to ~/.cache/nautilus-custom-icon.log
+# Logs write to ~/.cache/nautilus-custom-icon.log
 
 import os
 import logging
-import time
+from logging.handlers import RotatingFileHandler
 import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Nautilus', '4.0')
 from gi.repository import Nautilus, GObject, Gio, Gtk, Gdk, GLib
-LOG_PATH = os.path.expanduser("~/.cache/nautilus-custom-icon.log")
-os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
-handler = logging.FileHandler(LOG_PATH, mode="a", encoding="utf-8", delay=False)
-handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
-logging.basicConfig(level=logging.DEBUG, handlers=[handler], force=True)
-logging.debug(f"Nautilus Custom Icon Name initialized (extension path: {__file__})")
 
-# cache
-CACHE_TTL = 30.0  # seconds
+log_path = os.path.expanduser("~/.cache/nautilus-custom-icon.log")
+os.makedirs(os.path.dirname(log_path), exist_ok=True)
+
+handler = RotatingFileHandler(log_path, maxBytes=5*1024*1024, backupCount=1)
+formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+handler.setFormatter(formatter)
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+logger.addHandler(handler)
+
+cache_ttl = 30.0  # seconds
 
 class _IconCacheEntry:
     def __init__(self, themed_icon):
@@ -32,13 +36,13 @@ class CustomIconNameProvider(GObject.GObject, Nautilus.InfoProvider):
     def __init__(self):
         super().__init__()
         self._cache = {}
-        logging.debug("CustomIconNameProvider initialized")
+        logging.debug(f"Nautilus Custom Icon Name initialized (extension path: {__file__})")
 
     def _get_cached(self, path):
         ent = self._cache.get(path)
         if not ent:
             return None
-        if time.time() - ent.ts > CACHE_TTL:
+        if time.time() - ent.ts > cache_ttl:
             logging.debug("Cache expired for %s", path)
             self._cache.pop(path, None)
             return None
@@ -93,8 +97,25 @@ class CustomIconNameProvider(GObject.GObject, Nautilus.InfoProvider):
                 flags
             )
 
+            icon_paintable = theme.lookup_icon(icon_name, None, size, scale, Gtk.TextDirection.LTR, 0)
             if icon_paintable:
                 logging.debug(f"Icon '{icon_name}' found in current icon theme.")
+
+                try:
+                    # log the file path of the discovered icon if possible
+                    file_path = None
+                    if hasattr(icon_paintable, 'get_file'):
+                        file = icon_paintable.get_file()
+                        if file:
+                            file_path = file.get_path()
+                    
+                    if file_path:
+                        logging.debug(f"Icon path: {file_path}")
+                    else:
+                        logging.debug("Icon path not available from GtkIconPaintable.")
+                except Exception as e:
+                    logging.debug(f"Could not get icon file path: {e}")
+
                 return Gio.ThemedIcon.new(icon_name)
             else:
                 logging.debug(f"Icon '{icon_name}' NOT found in current icon theme.")
