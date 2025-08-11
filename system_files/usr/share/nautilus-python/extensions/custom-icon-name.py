@@ -6,22 +6,19 @@
 #
 # Logs go to ~/.cache/nautilus-custom-icon.log
 
-import logging
 import os
+import logging
 import time
 import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Nautilus', '4.0')
-from gi.repository import Nautilus, GObject, Gio, Gtk, GLib
-
-# logging
+from gi.repository import Nautilus, GObject, Gio, Gtk, Gdk, GLib
 LOG_PATH = os.path.expanduser("~/.cache/nautilus-custom-icon.log")
 os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
-
 handler = logging.FileHandler(LOG_PATH, mode="a", encoding="utf-8", delay=False)
 handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
 logging.basicConfig(level=logging.DEBUG, handlers=[handler], force=True)
-logging.debug("Logging initialized")
+logging.debug(f"Nautilus Custom Icon Name initialized (extension path: {__file__})")
 
 # cache
 CACHE_TTL = 30.0  # seconds
@@ -78,14 +75,32 @@ class CustomIconNameProvider(GObject.GObject, Nautilus.InfoProvider):
     def _resolve_themed_icon(self, icon_name):
         # check if the current theme has the icon
         try:
-            theme = Gtk.IconTheme.get_for_display(Gtk.Display.get_default())
-            if theme.has_icon(icon_name):
-                logging.debug("Icon theme has icon: %s", icon_name)
+            display = Gdk.Display.get_default()
+            theme = Gtk.IconTheme.get_for_display(display)
+
+            fallbacks = ["folder", None]  # fallback icons
+            size = 48
+            scale = 1
+            direction = Gtk.TextDirection.LTR
+            flags = 0
+
+            icon_paintable = theme.lookup_icon(
+                icon_name,
+                fallbacks,
+                size,
+                scale,
+                direction,
+                flags
+            )
+
+            if icon_paintable:
+                logging.debug(f"Icon '{icon_name}' found in current icon theme.")
                 return Gio.ThemedIcon.new(icon_name)
             else:
-                logging.debug("Icon theme does NOT have icon: %s", icon_name)
+                logging.debug(f"Icon '{icon_name}' NOT found in current icon theme.")
+
         except Exception as e:
-            logging.exception("Error checking icon theme for %s: %s", icon_name, e)
+            logging.error(f"Error looking up icon {icon_name}: {e}")
         return None
 
     def update_file_info(self, file):
