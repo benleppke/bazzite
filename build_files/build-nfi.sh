@@ -9,7 +9,7 @@ if [ ! -d nautilus-folder-icons ]; then
   git clone https://github.com/bilelmoussaoui/nautilus-folder-icons.git
 fi
 
-podman run --rm \
+sudo podman run --rm \
   -v "$(pwd)/nautilus-folder-icons":$build_dir:Z \
   -v "$output_dir":/output:Z \
   $build_image /bin/bash -c "
