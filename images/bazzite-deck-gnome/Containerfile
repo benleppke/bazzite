@@ -1,30 +1,9 @@
-# Build stage for nautilus-folder-icons
-FROM fedora:42 AS builder
-
-RUN dnf install -y meson ninja-build gcc python3-devel gettext python3-gobject-devel glib2-devel gtk3-devel git && \
-    dnf clean all
-
-WORKDIR /build
-RUN git clone https://github.com/bilelmoussaoui/nautilus-folder-icons.git .
-
-RUN meson setup builddir --prefix=/usr -Dfile_manager=nautilus && \
-    DESTDIR=/output ninja -C builddir install
-
-# Allow build scripts to be referenced without being copied into the final image
 FROM scratch AS ctx
 COPY build_files /
 
-# Base Image
 FROM ghcr.io/ublue-os/bazzite-deck-gnome:stable
 COPY system_files /
 
-# Copy nautilus-folder-icons output from build stage
-COPY --from=builder /output /
-
-# Create output directory for build artifacts
-RUN mkdir -p /ctx/output
-
-# Run main build and theming scripts
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
@@ -32,6 +11,5 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/build.sh && \
     /ctx/theme.sh
 
-# Commit OSTree and lint
 RUN ostree container commit
 RUN bootc container lint
