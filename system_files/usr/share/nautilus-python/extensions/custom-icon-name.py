@@ -6,34 +6,35 @@
 #
 # Logs go to ~/.cache/nautilus-custom-icon.log
 
-from gi.repository import Nautilus, GObject, Gio, Gtk, GLib
 import logging
 import os
 import time
+import gi
+gi.require_version('Gtk', '4.0')
+gi.require_version('Nautilus', '4.0')
+from gi.repository import Nautilus, GObject, Gio, Gtk, GLib
 
+# logging
 LOG_PATH = os.path.expanduser("~/.cache/nautilus-custom-icon.log")
 os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
 
-logging.basicConfig(
-    filename=LOG_PATH,
-    level=logging.DEBUG,
-    format="%(asctime)s %(levelname)s %(message)s",
-)
+handler = logging.FileHandler(LOG_PATH, mode="a", encoding="utf-8", delay=False)
+handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+logging.basicConfig(level=logging.DEBUG, handlers=[handler], force=True)
+logging.debug("Logging initialized")
 
-# Simple TTL cache for resolved icons to avoid repeated query_info calls.
+# cache
 CACHE_TTL = 30.0  # seconds
-
 
 class _IconCacheEntry:
     def __init__(self, themed_icon):
         self.icon = themed_icon
         self.ts = time.time()
 
-
-class CustomIconNameProvider(GObject.GObject, Nautilus.IconProvider):
+class CustomIconNameProvider(GObject.GObject, Nautilus.InfoProvider):
     def __init__(self):
         super().__init__()
-        self._cache = {}  # map path -> _IconCacheEntry
+        self._cache = {}
         logging.debug("CustomIconNameProvider initialized")
 
     def _get_cached(self, path):
@@ -50,8 +51,8 @@ class CustomIconNameProvider(GObject.GObject, Nautilus.IconProvider):
         self._cache[path] = _IconCacheEntry(themed_icon)
         logging.debug("Cached icon for %s -> %s", path, getattr(themed_icon, "names", themed_icon))
 
-    def _read_custom_icon_name(self, gio_file):
-        # Use Gio.File.query_info to read metadata::custom-icon-name
+    def _read_custom_icon_name(self, gio_file):\
+        # use Gio.File.query_info to read metadata::custom-icon-name
         try:
             info = gio_file.query_info(
                 "metadata::custom-icon-name",
@@ -75,33 +76,27 @@ class CustomIconNameProvider(GObject.GObject, Nautilus.IconProvider):
         return None
 
     def _resolve_themed_icon(self, icon_name):
-        # Check if the current theme has the icon
+        # check if the current theme has the icon
         try:
-            theme = Gtk.IconTheme.get_default()
+            theme = Gtk.IconTheme.get_for_display(Gtk.Display.get_default())
             if theme.has_icon(icon_name):
                 logging.debug("Icon theme has icon: %s", icon_name)
                 return Gio.ThemedIcon.new(icon_name)
             else:
                 logging.debug("Icon theme does NOT have icon: %s", icon_name)
         except Exception as e:
-            logging.exception("Error while checking icon theme for %s: %s", icon_name, e)
+            logging.exception("Error checking icon theme for %s: %s", icon_name, e)
         return None
 
-    # Nautilus.IconProvider API: get_icon(self, file)
-    def get_icon(self, file):
-        """
-        Called by Nautilus when it wants an icon for a file.
-        Return a Gio.Icon (e.g. Gio.ThemedIcon) or None.
-        """
-        # Only handle local files (file://)
+    def update_file_info(self, file):
         try:
             uri_scheme = file.get_uri_scheme()
         except Exception:
             logging.debug("file.get_uri_scheme() failed")
-            return None
+            return
 
         if uri_scheme != "file":
-            return None
+            return
 
         path = None
         try:
@@ -116,26 +111,27 @@ class CustomIconNameProvider(GObject.GObject, Nautilus.IconProvider):
                 path = None
 
         if not path:
-            return None
+            return
 
         # return from cache if present
         cached = self._get_cached(path)
         if cached:
-            return cached
+            file.set_icon(cached)
+            return
 
         gio_file = Gio.File.new_for_path(path)
 
-        # Read metadata
+        # read metadata
         icon_name = self._read_custom_icon_name(gio_file)
         if not icon_name:
-            return None
+            return
 
         themed_icon = self._resolve_themed_icon(icon_name)
         if not themed_icon:
             # no such icon in current theme - don't override
             logging.debug("No themed icon resolved for %s on %s", icon_name, path)
-            return None
+            return
 
         # cache and return
         self._set_cache(path, themed_icon)
-        return themed_icon
+        file.set_icon(themed_icon)
