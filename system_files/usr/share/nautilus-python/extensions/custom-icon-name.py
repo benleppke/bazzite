@@ -7,6 +7,7 @@
 # Logs write to ~/.cache/nautilus-custom-icon.log
 
 import os
+import time
 import logging
 from logging.handlers import RotatingFileHandler
 import gi
@@ -33,24 +34,27 @@ class _IconCacheEntry:
         self.ts = time.time()
 
 class CustomIconNameProvider(GObject.GObject, Nautilus.InfoProvider):
+    _cache = {}
+
     def __init__(self):
         super().__init__()
-        self._cache = {}
-        # logging.debug(f"Nautilus Custom Icon Name initialized (extension path: {__file__})")
+        logging.debug(f"Nautilus Custom Icon Name initialized (extension path: {__file__})")
 
     def _get_cached(self, path):
         ent = self._cache.get(path)
         if not ent:
+            logging.debug(f"No cache entry for {path}")
             return None
         if time.time() - ent.ts > cache_ttl:
-            logging.debug("Cache expired for %s", path)
+            logging.debug(f"Cache expired for {path}")
             self._cache.pop(path, None)
             return None
+        logging.debug(f"Cache hit for {path}, returning icon")
         return ent.icon
 
     def _set_cache(self, path, themed_icon):
+        logging.debug(f"Setting cache for {path} -> {getattr(themed_icon, 'names', themed_icon)}")
         self._cache[path] = _IconCacheEntry(themed_icon)
-        logging.debug("Cached icon for %s -> %s", path, getattr(themed_icon, "names", themed_icon))
 
     def _read_custom_icon_name(self, gio_file):\
         # use Gio.File.query_info to read metadata::custom-icon-name
@@ -123,12 +127,6 @@ class CustomIconNameProvider(GObject.GObject, Nautilus.InfoProvider):
         if not path:
             return
 
-        # return from cache if present
-        cached = self._get_cached(path)
-        if cached:
-            file.set_icon(cached)
-            return
-
         gio_file = Gio.File.new_for_path(path)
 
         # read metadata
@@ -136,9 +134,16 @@ class CustomIconNameProvider(GObject.GObject, Nautilus.InfoProvider):
         if not icon_name:
             return
 
+        # use cache if available
+        cached = self._get_cached(path)
+        if cached:
+            file.set_icon(cached)
+            logging.debug(f"Using cached icon for {path}")
+            return
+
+        logging.debug(f"Cache miss for {path}, resolving icon...")
         themed_icon = self._resolve_themed_icon(icon_name)
         if not themed_icon:
-            # no such icon in current theme - don't override
             logging.debug("No themed icon resolved for %s on %s", icon_name, path)
             return
 
