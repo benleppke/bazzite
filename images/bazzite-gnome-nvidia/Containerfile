@@ -8,7 +8,7 @@ WORKDIR /build
 RUN git clone https://github.com/bilelmoussaoui/nautilus-folder-icons.git .
 
 RUN meson setup builddir --prefix=/usr -Dfile_manager=nautilus && \
-    ninja -C builddir install DESTDIR=/output
+    DESTDIR=/output ninja -C builddir install
 
 # Allow build scripts to be referenced without being copied into the final image
 FROM scratch AS ctx
