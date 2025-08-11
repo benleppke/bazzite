@@ -1,7 +1,7 @@
 # Build stage for nautilus-folder-icons
 FROM fedora:42 AS builder
 
-RUN dnf install -y meson ninja-build gcc python3-devel gettext pygobject3-devel glib2-devel gtk3-devel git && \
+RUN dnf install -y meson ninja-build gcc python3-devel gettext python3-gobject-devel glib2-devel gtk3-devel git && \
     dnf clean all
 
 WORKDIR /build

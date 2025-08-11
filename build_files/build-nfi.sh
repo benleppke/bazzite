@@ -7,7 +7,7 @@ if [ ! -d nautilus-folder-icons ]; then
   git clone https://github.com/bilelmoussaoui/nautilus-folder-icons.git
 fi
 
-dnf install -y meson ninja-build gcc python3-devel gettext pygobject3-devel glib2-devel gtk3-devel &&
+dnf install -y meson ninja-build gcc python3-devel gettext python3-gobject-devel glib2-devel gtk3-devel &&
 cd $build_dir &&
 meson setup builddir --prefix=/usr -Dfile_manager=nautilus &&
 ninja -C builddir install DESTDIR=/output
