@@ -1,3 +1,15 @@
+# Build stage for nautilus-folder-icons
+FROM fedora:42 AS nfi-builder
+
+RUN dnf install -y meson ninja-build gcc python3-devel gettext pygobject3-devel glib2-devel gtk3-devel git && \
+    dnf clean all
+
+WORKDIR /build
+RUN git clone https://github.com/bilelmoussaoui/nautilus-folder-icons.git .
+
+RUN meson setup builddir --prefix=/usr -Dfile_manager=nautilus && \
+    ninja -C builddir install DESTDIR=/output
+
 # Allow build scripts to be referenced without being copied into the final image
 FROM scratch AS ctx
 COPY build_files /
@@ -5,6 +17,9 @@ COPY build_files /
 # Base Image
 FROM ghcr.io/ublue-os/bazzite-deck-gnome:stable
 COPY system_files /
+
+# Copy nautilus-folder-icons output from build stage
+COPY --from=builder /output /usr
 
 # Create output directory for build artifacts
 RUN mkdir -p /ctx/output
@@ -16,18 +31,6 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/build.sh && \
     /ctx/theme.sh
-
-# Run build-nfi.sh to build nautilus-folder-icons and output files into /ctx/output
-RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
-    --mount=type=bind,source=/ctx/output,target=/ctx/output \
-    --mount=type=cache,dst=/var/cache \
-    /ctx/build-nfi.sh
-
-# Copy built nautilus-folder-icons files from output into final image
-COPY --from=ctx /ctx/output/usr/share/nautilus-python/extensions/folder-icons.py /usr/share/nautilus-python/extensions/
-COPY --from=ctx /ctx/output/usr/share/com.github.bilelmoussaoui.nautilus-folder-icons /usr/share/com.github.bilelmoussaoui.nautilus-folder-icons
-COPY --from=ctx /ctx/output/usr/share/metainfo/com.github.bilelmoussaoui.nautilus-folder-icons.metainfo.xml /usr/share/metainfo/
-COPY --from=ctx /ctx/output/usr/share/locale /usr/share/locale
 
 # Commit OSTree and lint
 RUN ostree container commit
