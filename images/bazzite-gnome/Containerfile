@@ -19,7 +19,7 @@ FROM ghcr.io/ublue-os/bazzite-gnome:stable
 COPY system_files /
 
 # Copy nautilus-folder-icons output from build stage
-COPY --from=builder /output /usr
+COPY --from=builder /output /
 
 # Create output directory for build artifacts
 RUN mkdir -p /ctx/output
