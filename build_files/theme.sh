@@ -2,7 +2,6 @@
 set -e
 shopt -s nullglob
 
-# Themes to create variants for
 BASE_THEMES=("Papirus-Dark" "Papirus-Light")
 TARGET_BASE="/usr/share/icons"
 
@@ -32,14 +31,14 @@ process_size() {
   for icon in "$SRC_DIR"/*-"${COLOR}"-*.svg "$SRC_DIR"/*-"${COLOR}".svg; do
     base_name=$(basename "$icon" | sed "s/-${COLOR}\(-\|\.svg\)/\1/")
     target_icon="$DEST_DIR/$base_name"
-    echo "    • $base_name → $icon"
+    # echo "    • $base_name → $icon"
     ln -sf "$icon" "$target_icon"
 
     # Handle special cases
     if [[ "$base_name" == "folder-public.svg" ]]; then
       src_icon="/usr/share/icons/Papirus/${SRC_SIZE}/places/folder-${COLOR}-public.svg"
       ln -sf "$src_icon" "$DEST_DIR/folder-publicshare.svg"
-      echo "    • Also: folder-publicshare.svg → $src_icon"
+      # echo "    • Also: folder-publicshare.svg → $src_icon"
     fi
 
   done
