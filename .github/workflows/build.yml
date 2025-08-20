@@ -66,6 +66,7 @@ jobs:
       - name: Create and mount Btrfs loopback for podman storage
         run: |
         
+          sudo apt install fuse-overlayfs -y
           # If mounted, unmount cleanly
           if mountpoint -q /tmp/ubluecontainers; then
             sudo umount /tmp/ubluecontainers
