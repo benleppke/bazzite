@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-extensions_file="./extensions.txt"
+extensions_file="/ctx/extensions.txt"
 install_dir="/usr/share/gnome-shell/extensions"
 gnome_version=$(rpm -q gnome-shell --qf '%{VERSION}\n' | cut -d. -f1)
 
