@@ -28,7 +28,7 @@ concurrency:
 jobs:
   build_push:
     name: Build and push ${{ matrix.flavor }}
-    runs-on: ubuntu-24.04
+    runs-on: self-hosted
 
     strategy:
       matrix:
@@ -60,13 +60,23 @@ jobs:
       #   with:
       #     remove-codeql: true
 
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            btrfs-progs fuse-overlayfs
+
       - name: Create Btrfs target directory
         run: mkdir -p /tmp/ubluecontainers
 
       - name: Create and mount Btrfs loopback for podman storage
         run: |
+          sudo umount /tmp/ubluecontainers || true
+          rm -f /tmp/btrfs-volume.img
+
           fallocate -l 6G /tmp/btrfs-volume.img
           mkfs.btrfs /tmp/btrfs-volume.img
+
           mkdir -p /tmp/ubluecontainers
           sudo mount -o loop /tmp/btrfs-volume.img /tmp/ubluecontainers
 
