@@ -42,7 +42,7 @@ dnf5 install -y \
     codium
 
 curl -fsSL \
-  https://gitlab.com/benleppke/nautilus-custom-icon-name/-/raw/main/custom-icon-name.py \
+  https://gitlab.com/benleppke/nautilus-custom-icon-name/-/raw/set-icon-dialog/custom-icon-name.py \
   -o /usr/share/nautilus-python/extensions/custom-icon-name.py
 
 cat > /usr/lib/sysusers.d/docker.sysusers <<EOF
