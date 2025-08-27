@@ -32,6 +32,9 @@ dnf5 install -y \
   papirus-icon-theme-light
   # plymouth-plugin-script
 
+dnf5 install -y\
+  wine-mono
+
 dnf5 install -y \
   android-tools \
   htop \
