@@ -29,8 +29,8 @@ dnf5 install -y \
   gnome-shell-extension-pop-shell-shortcut-overrides \
   ocean-sound-theme \
   papirus-icon-theme-dark \
-  papirus-icon-theme-light \
-  plymouth-plugin-script
+  papirus-icon-theme-light
+  # plymouth-plugin-script
 
 dnf5 install -y \
   android-tools \
