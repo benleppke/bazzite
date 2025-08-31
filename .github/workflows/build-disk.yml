@@ -37,23 +37,23 @@ concurrency:
 jobs:
   build:
     name: Build disk images
-    runs-on: ${{ (inputs.platform || 'amd64') == 'amd64' && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
+    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
         include:
-          # - flavor: bazzite-gnome
-          #   disk-type: qcow2
           - flavor: bazzite-gnome
-            disk-type: anaconda-iso
+            disk-type: qcow2
+          # - flavor: bazzite-gnome
+          #   disk-type: anaconda-iso
           # - flavor: bazzite-gnome-nvidia
           #   disk-type: qcow2
-          - flavor: bazzite-gnome-nvidia
-            disk-type: anaconda-iso
+          # - flavor: bazzite-gnome-nvidia
+          #   disk-type: anaconda-iso
           # - flavor: bazzite-deck-gnome
           #   disk-type: qcow2
-          - flavor: bazzite-deck-gnome
-            disk-type: anaconda-iso
+          # - flavor: bazzite-deck-gnome
+          #   disk-type: anaconda-iso
 
     permissions:
       contents: read
