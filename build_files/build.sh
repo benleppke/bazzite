@@ -44,10 +44,6 @@ dnf5 install -y \
   --enablerepo=vscodium \
     codium
 
-curl -fsSL \
-  https://gitlab.com/benleppke/nautilus-custom-icon-name/-/raw/main/custom-icon-name.py \
-  -o /usr/share/nautilus-python/extensions/custom-icon-name.py
-
 cat > /usr/lib/sysusers.d/docker.sysusers <<EOF
 g docker - "Docker Group"
 EOF
