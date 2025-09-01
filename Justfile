@@ -182,14 +182,15 @@ _build-bib $target_image $tag $type $config: (_rootful_load_image target_image t
       --pull=newer \
       --net=host \
       --security-opt label=type:unconfined_t \
-      -v $(pwd)/${config}:/config.toml:ro \
+      -v "$(pwd)/{{ config }}":/config.toml:ro \
       -v $BUILDTMP:/output \
       -v /var/lib/containers/storage:/var/lib/containers/storage \
-      "${bib_image}" \
+      "{{ bib_image }}" \
       ${args} \
-      "${target_image}:${tag}"
+      "{{ target_image }}:{{ tag }}"
 
     mkdir -p output
+    sudo rm -rf "output/${type}"
     sudo mv -f $BUILDTMP/* output/
     sudo rmdir $BUILDTMP
     sudo chown -R $USER:$USER output/
