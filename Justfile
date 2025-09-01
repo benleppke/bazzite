@@ -1,6 +1,7 @@
-export image_name := env("IMAGE_NAME", "image-template") # output image name, usually same as repo name, change as needed
+export image_name := env("IMAGE_NAME", "bazzite")
 export default_tag := env("DEFAULT_TAG", "latest")
 export bib_image := env("BIB_IMAGE", "quay.io/centos-bootc/bootc-image-builder:latest")
+export IMAGE_REGISTRY := env("IMAGE_REGISTRY", "ghcr.io/benleppke")
 
 alias build-vm := build-qcow2
 alias rebuild-vm := rebuild-qcow2
@@ -38,7 +39,7 @@ clean:
     #!/usr/bin/bash
     set -eoux pipefail
     touch _build
-    find *_build* -exec rm -rf {} \;
+    find *_build* -maxdepth 0 -type d -print0 | xargs -0 rm -rf
     rm -f previous.manifest.json
     rm -f changelog.md
     rm -f output.env
@@ -71,34 +72,40 @@ sudoif command *args:
 # This Justfile recipe builds a container image using Podman.
 #
 # Arguments:
-#   $target_image - The tag you want to apply to the image (default: $image_name).
-#   $tag - The tag for the image (default: $default_tag).
+#   $flavor - The name of the flavor (e.g., bazzite-gnome).
 #
 # The script constructs the version string using the tag and the current date.
 # If the git working directory is clean, it also includes the short SHA of the current HEAD.
 #
-# just build $target_image $tag
+# just build $flavor
 #
 # Example usage:
-#   just build aurora lts
+#   just build aurora
 #
-# This will build an image 'aurora:lts' with DX and GDX enabled.
+# This will build an image 'aurora' with the default tag.
 #
 
-# Build the image using the specified parameters
-build $target_image=image_name $tag=default_tag:
+# Build Image
+build flavor:
     #!/usr/bin/env bash
-
-    BUILD_ARGS=()
-    if [[ -z "$(git status -s)" ]]; then
-        BUILD_ARGS+=("--build-arg" "SHA_HEAD_SHORT=$(git rev-parse --short HEAD)")
+    set -euo pipefail
+    
+    export IMAGE_NAME="{{ flavor }}"
+    export FLAVOR_DIR="images/${IMAGE_NAME}"
+    
+    if [[ ! -d "${FLAVOR_DIR}" ]]; then
+      echo "Error: The directory ${FLAVOR_DIR} does not exist."
+      exit 1
     fi
-
+    
     podman build \
-        "${BUILD_ARGS[@]}" \
-        --pull=newer \
-        --tag "${target_image}:${tag}" \
-        .
+      -f "$FLAVOR_DIR/Containerfile" \
+      --build-arg IMAGE_NAME="$IMAGE_NAME" \
+      --build-arg IMAGE_REGISTRY="$IMAGE_REGISTRY" \
+      --build-arg IMAGE_DESC="Bazzite-{{ flavor }}" \
+      --build-arg IMAGE_KEYWORDS="bazzite" \
+      --tag $IMAGE_REGISTRY/$IMAGE_NAME:$default_tag \
+      .
 
 # Command: _rootful_load_image
 # Description: This script checks if the current user is root or running under sudo. If not, it attempts to resolve the image tag using podman inspect.
@@ -106,7 +113,7 @@ build $target_image=image_name $tag=default_tag:
 #
 # Parameters:
 #   $target_image - The name of the target image to be loaded or pulled.
-#   $tag - The tag of the target image to be loaded or pulled. Default is 'default_tag'.
+#   $tag - The tag of the target image to be loaded or pulled.
 #
 # Example usage:
 #   _rootful_load_image my_image latest
@@ -117,7 +124,7 @@ build $target_image=image_name $tag=default_tag:
 # 3. If the image is found, load it into rootful podman using podman scp.
 # 4. If the image is not found, pull it from the remote repository into reootful podman.
 
-_rootful_load_image $target_image=image_name $tag=default_tag:
+_rootful_load_image $target_image $tag:
     #!/usr/bin/bash
     set -eoux pipefail
 
@@ -175,14 +182,15 @@ _build-bib $target_image $tag $type $config: (_rootful_load_image target_image t
       --pull=newer \
       --net=host \
       --security-opt label=type:unconfined_t \
-      -v $(pwd)/${config}:/config.toml:ro \
+      -v "$(pwd)/{{ config }}":/config.toml:ro \
       -v $BUILDTMP:/output \
       -v /var/lib/containers/storage:/var/lib/containers/storage \
-      "${bib_image}" \
+      "{{ bib_image }}" \
       ${args} \
-      "${target_image}:${tag}"
+      "{{ target_image }}:{{ tag }}"
 
     mkdir -p output
+    sudo rm -rf "output/${type}"
     sudo mv -f $BUILDTMP/* output/
     sudo rmdir $BUILDTMP
     sudo chown -R $USER:$USER output/
@@ -194,32 +202,35 @@ _build-bib $target_image $tag $type $config: (_rootful_load_image target_image t
 #   type: The type of image to build (ex. qcow2, raw, iso)
 #   config: The configuration file to use for the build (deafult: disk_config/disk.toml)
 
-# Example: just _rebuild-bib localhost/fedora latest qcow2 disk_config/disk.toml
-_rebuild-bib $target_image $tag $type $config: (build target_image tag) && (_build-bib target_image tag type config)
+# Example: just _rebuild-bib "bazzite-gnome" localhost/fedora latest qcow2 disk_config/disk.toml
+_rebuild-bib $flavor $target_image $tag $type $config: (build flavor) && (_build-bib target_image tag type config)
 
 # Build a QCOW2 virtual machine image
 [group('Build Virtal Machine Image')]
-build-qcow2 $target_image=("localhost/" + image_name) $tag=default_tag: && (_build-bib target_image tag "qcow2" "disk_config/disk.toml")
+build-qcow2 $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_build-bib target_image tag "qcow2" ("images/" + flavor + "/disk.toml"))
 
 # Build a RAW virtual machine image
 [group('Build Virtal Machine Image')]
-build-raw $target_image=("localhost/" + image_name) $tag=default_tag: && (_build-bib target_image tag "raw" "disk_config/disk.toml")
+build-raw $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_build-bib target_image tag "raw" ("images/" + flavor + "/disk.toml"))
 
 # Build an ISO virtual machine image
 [group('Build Virtal Machine Image')]
-build-iso $target_image=("localhost/" + image_name) $tag=default_tag: && (_build-bib target_image tag "iso" "disk_config/iso.toml")
+build-iso $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_build-bib target_image tag "iso" ("images/" + flavor + "/iso.toml"))
 
 # Rebuild a QCOW2 virtual machine image
 [group('Build Virtal Machine Image')]
-rebuild-qcow2 $target_image=("localhost/" + image_name) $tag=default_tag: && (_rebuild-bib target_image tag "qcow2" "disk_config/disk.toml")
+rebuild-qcow2 flavor:
+    @just _rebuild-bib "{{ flavor }}" "{{ IMAGE_REGISTRY }}/{{ flavor }}" "{{ default_tag }}" "qcow2" "images/{{ flavor }}/disk.toml"
 
 # Rebuild a RAW virtual machine image
 [group('Build Virtal Machine Image')]
-rebuild-raw $target_image=("localhost/" + image_name) $tag=default_tag: && (_rebuild-bib target_image tag "raw" "disk_config/disk.toml")
+rebuild-raw flavor:
+    @just _rebuild-bib "{{ flavor }}" "{{ IMAGE_REGISTRY }}/{{ flavor }}" "{{ default_tag }}" "raw" "images/{{ flavor }}/disk.toml"
 
 # Rebuild an ISO virtual machine image
 [group('Build Virtal Machine Image')]
-rebuild-iso $target_image=("localhost/" + image_name) $tag=default_tag: && (_rebuild-bib target_image tag "iso" "disk_config/iso.toml")
+rebuild-iso flavor:
+    @just _rebuild-bib "{{ flavor }}" "{{ IMAGE_REGISTRY }}/{{ flavor }}" "{{ default_tag }}" "iso" "images/{{ flavor }}/iso.toml"
 
 # Run a virtual machine with the specified image type and configuration
 _run-vm $target_image $tag $type $config:
@@ -265,15 +276,15 @@ _run-vm $target_image $tag $type $config:
 
 # Run a virtual machine from a QCOW2 image
 [group('Run Virtal Machine')]
-run-vm-qcow2 $target_image=("localhost/" + image_name) $tag=default_tag: && (_run-vm target_image tag "qcow2" "disk_config/disk.toml")
+run-vm-qcow2 $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_run-vm target_image tag "qcow2" ("images/" + flavor + "/disk.toml"))
 
 # Run a virtual machine from a RAW image
 [group('Run Virtal Machine')]
-run-vm-raw $target_image=("localhost/" + image_name) $tag=default_tag: && (_run-vm target_image tag "raw" "disk_config/disk.toml")
+run-vm-raw $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_run-vm target_image tag "raw" ("images/" + flavor + "/disk.toml"))
 
 # Run a virtual machine from an ISO
 [group('Run Virtal Machine')]
-run-vm-iso $target_image=("localhost/" + image_name) $tag=default_tag: && (_run-vm target_image tag "iso" "disk_config/iso.toml")
+run-vm-iso $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_run-vm target_image tag "iso" "disk_config/iso.toml")
 
 # Run a virtual machine using systemd-vmspawn
 [group('Run Virtal Machine')]
