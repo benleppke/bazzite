@@ -214,22 +214,22 @@ build-raw $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag
 
 # Build an ISO virtual machine image
 [group('Build Virtal Machine Image')]
-build-iso $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_build-bib target_image tag "iso" "disk_config/iso.toml")
+build-iso $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_build-bib target_image tag "iso" ("images/" + flavor + "/iso.toml"))
 
 # Rebuild a QCOW2 virtual machine image
 [group('Build Virtal Machine Image')]
 rebuild-qcow2 flavor:
-    @just _rebuild-bib "{{ flavor }}" (IMAGE_REGISTRY + "/" + flavor) "{{ default_tag }}" "qcow2" ("images/" + flavor + "/disk.toml")
+    @just _rebuild-bib "{{ flavor }}" "{{ IMAGE_REGISTRY }}/{{ flavor }}" "{{ default_tag }}" "qcow2" "images/{{ flavor }}/disk.toml"
 
 # Rebuild a RAW virtual machine image
 [group('Build Virtal Machine Image')]
 rebuild-raw flavor:
-    @just _rebuild-bib "{{ flavor }}" (IMAGE_REGISTRY + "/" + flavor) "{{ default_tag }}" "raw" ("images/" + flavor + "/disk.toml")
+    @just _rebuild-bib "{{ flavor }}" "{{ IMAGE_REGISTRY }}/{{ flavor }}" "{{ default_tag }}" "raw" "images/{{ flavor }}/disk.toml"
 
 # Rebuild an ISO virtual machine image
 [group('Build Virtal Machine Image')]
 rebuild-iso flavor:
-    @just _rebuild-bib "{{ flavor }}" (IMAGE_REGISTRY + "/" + flavor) "{{ default_tag }}" "iso" "disk_config/iso.toml"
+    @just _rebuild-bib "{{ flavor }}" "{{ IMAGE_REGISTRY }}/{{ flavor }}" "{{ default_tag }}" "iso" "images/{{ flavor }}/iso.toml"
 
 # Run a virtual machine with the specified image type and configuration
 _run-vm $target_image $tag $type $config:
