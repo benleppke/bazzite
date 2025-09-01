@@ -206,11 +206,11 @@ _rebuild-bib $flavor $target_image $tag $type $config: (build flavor) && (_build
 
 # Build a QCOW2 virtual machine image
 [group('Build Virtal Machine Image')]
-build-qcow2 $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_build-bib target_image tag "qcow2" "disk_config/disk.toml")
+build-qcow2 $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_build-bib target_image tag "qcow2" ("images/" + flavor + "/disk.toml"))
 
 # Build a RAW virtual machine image
 [group('Build Virtal Machine Image')]
-build-raw $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_build-bib target_image tag "raw" "disk_config/disk.toml")
+build-raw $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_build-bib target_image tag "raw" ("images/" + flavor + "/disk.toml"))
 
 # Build an ISO virtual machine image
 [group('Build Virtal Machine Image')]
@@ -219,12 +219,12 @@ build-iso $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag
 # Rebuild a QCOW2 virtual machine image
 [group('Build Virtal Machine Image')]
 rebuild-qcow2 flavor:
-    @just _rebuild-bib "{{ flavor }}" (IMAGE_REGISTRY + "/" + flavor) "{{ default_tag }}" "qcow2" "disk_config/disk.toml"
+    @just _rebuild-bib "{{ flavor }}" (IMAGE_REGISTRY + "/" + flavor) "{{ default_tag }}" "qcow2" ("images/" + flavor + "/disk.toml")
 
 # Rebuild a RAW virtual machine image
 [group('Build Virtal Machine Image')]
 rebuild-raw flavor:
-    @just _rebuild-bib "{{ flavor }}" (IMAGE_REGISTRY + "/" + flavor) "{{ default_tag }}" "raw" "disk_config/disk.toml"
+    @just _rebuild-bib "{{ flavor }}" (IMAGE_REGISTRY + "/" + flavor) "{{ default_tag }}" "raw" ("images/" + flavor + "/disk.toml")
 
 # Rebuild an ISO virtual machine image
 [group('Build Virtal Machine Image')]
@@ -275,11 +275,11 @@ _run-vm $target_image $tag $type $config:
 
 # Run a virtual machine from a QCOW2 image
 [group('Run Virtal Machine')]
-run-vm-qcow2 $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_run-vm target_image tag "qcow2" "disk_config/disk.toml")
+run-vm-qcow2 $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_run-vm target_image tag "qcow2" ("images/" + flavor + "/disk.toml"))
 
 # Run a virtual machine from a RAW image
 [group('Run Virtal Machine')]
-run-vm-raw $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_run-vm target_image tag "raw" "disk_config/disk.toml")
+run-vm-raw $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_run-vm target_image tag "raw" ("images/" + flavor + "/disk.toml"))
 
 # Run a virtual machine from an ISO
 [group('Run Virtal Machine')]
