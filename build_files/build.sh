@@ -38,6 +38,7 @@ dnf5 install -y\
 dnf5 install -y \
   android-tools \
   htop \
+  ncdu \
   yt-dlp
 
 dnf5 install -y \
