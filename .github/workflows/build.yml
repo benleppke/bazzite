@@ -207,3 +207,31 @@ jobs:
           TAGS: ${{ steps.push.outputs.digest }}
           COSIGN_EXPERIMENTAL: false
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+
+      - name: Cleanup Job Specific Data
+        if: always()
+        run: |
+          echo "Cleaning up build-related temporary data..."
+
+          rm -rf "${{ github.workspace }}"/* || true
+          podman system prune -f || true
+
+  cleanup_runner:
+    name: Cleanup Self-Hosted Runner
+    needs: build_push
+    runs-on: self-hosted
+    if: always()
+
+    steps:
+      - name: Cleanup all runner cache
+        run: |
+          echo "Cleaning up general runner cache and temporary files..."
+          # Remove any cached directories that might be left over from other actions
+          rm -rf ~/.cache || true
+
+          # Clean up global temporary directories
+          rm -rf /tmp/* || true
+
+          # Prune unused container layers and volumes
+          echo "Attempting to prune unused container layers..."
+          docker system prune -a --volumes -f || podman system prune -a --volumes -f || true
