@@ -30,7 +30,6 @@ dnf5 install -y \
   ocean-sound-theme \
   papirus-icon-theme-dark \
   papirus-icon-theme-light
-  # plymouth-plugin-script
 
 dnf5 install -y\
   wine-mono
@@ -40,6 +39,13 @@ dnf5 install -y \
   htop \
   ncdu \
   yt-dlp
+
+# Install cursor
+CLI_DIR="/tmp/cursor-cli"
+mkdir -p "$CLI_DIR"
+curl -L --output "$CLI_DIR/cursor-cli.tar.gz" "https://api2.cursor.sh/updates/download-latest?os=cli-alpine-x64"
+tar -xzf "$CLI_DIR/cursor-cli.tar.gz" -C "$CLI_DIR"
+install -m 0755 "$CLI_DIR/cursor" /usr/bin/cursor-cli
 
 # Don't show cli tools in the application menu
 find /usr/share/applications/ -maxdepth 1 -type f \
