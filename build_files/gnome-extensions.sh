@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+echo "Running gnome-extensions script..."
 
 extensions_file="/ctx/extensions.txt"
 install_dir="/usr/share/gnome-shell/extensions"
