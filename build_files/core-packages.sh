@@ -19,7 +19,8 @@ dnf5 install -y \
 
 # Install microsoft fonts
 dnf5 install -y \
-  msttcore-fonts-installer
+  --enablerepo=rpmfusion-nonfree \
+    msttcore-fonts-installer
 
 # Codium
 dnf5 install -y \
