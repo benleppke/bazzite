@@ -7,6 +7,7 @@ dnf5 install -y \
   android-tools \
   htop \
   ncdu \
+  direnv \
   yt-dlp
 
 # Don't show cli tools in the application menu
