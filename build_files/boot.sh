@@ -13,3 +13,5 @@ KERNEL_VERSION="$(dnf5 repoquery --installed --queryformat='%{evr}.%{arch}' kern
   -f "/usr/lib/modules/$KERNEL_VERSION/initramfs.img"
 
 chmod 0600 "/usr/lib/modules/$KERNEL_VERSION/initramfs.img"
+
+dn5 install -y plymouth-plugin-script
