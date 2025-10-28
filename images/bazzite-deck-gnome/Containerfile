@@ -13,7 +13,8 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/docker.sh && \
     /ctx/gnome-shell.sh && \
     /ctx/gnome-extensions.sh && \
-    /ctx/cli-tools.sh
+    /ctx/cli-tools.sh && \
+    /ctx/boot.sh
 
 RUN ostree container commit
 RUN bootc container lint
