@@ -2,6 +2,9 @@
 
 set -ouex pipefail
 
+echo "#######################################################################################################################"
+echo "Running cli-tools script..."
+
 # CLI tools
 dnf5 install -y \
   android-tools \
