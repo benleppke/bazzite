@@ -1,7 +1,9 @@
 #!/bin/bash
 
-echo "Running pre-build script..."
 set -ouex pipefail
+
+echo "#######################################################################################################################"
+echo "Running pre-build script..."
 
 # Avoid GPG errors when dnf5 tries to import keys
 export GNUPGHOME=/tmp/gnupg
