@@ -49,6 +49,12 @@ done < "$extensions_file"
 FILE="/usr/share/gnome-shell/extensions/blur-my-shell@aunetx/metadata.json"
 
 tmp=$(mktemp)
-jq 'if .["shell-version"] | index("49") then . else .["shell-version"] += ["49"] end' "$FILE" > "$tmp"
-sudo mv "$tmp" "$FILE"
-sudo chmod 644 "$FILE"
+if jq -e '.["shell-version"] | index("49")' "$FILE" >/dev/null; then
+    echo "GNOME 49 support already present, no changes made."
+else
+    tmp=$(mktemp)
+    jq '.["shell-version"] += ["49"]' "$FILE" > "$tmp"
+    mv "$tmp" "$FILE"
+    chmod 644 "$FILE"
+    echo "GNOME 49 support added to $FILE."
+fi
