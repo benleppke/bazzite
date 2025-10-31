@@ -43,3 +43,12 @@ while IFS= read -r uuid; do
   rm -f "$tmpfile"
   echo "✅ Installed $uuid into $install_dir"
 done < "$extensions_file"
+
+# blur-my-shell - enable GNOME 49 support
+
+FILE="/usr/share/gnome-shell/extensions/blur-my-shell@aunetx/metadata.json"
+
+tmp=$(mktemp)
+jq 'if .["shell-version"] | index("49") then . else .["shell-version"] += ["49"] end' "$FILE" > "$tmp"
+sudo mv "$tmp" "$FILE"
+sudo chmod 644 "$FILE"
