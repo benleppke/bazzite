@@ -1,7 +1,9 @@
 #!/bin/bash
 
-echo "Running gnome-shell script..."
 set -ouex pipefail
+
+echo "#######################################################################################################################"
+echo "Running gnome-shell script..."
 
 # Pop Shell extensions and sound/icon themes
 dnf5 install -y \
