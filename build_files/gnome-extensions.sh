@@ -43,18 +43,3 @@ while IFS= read -r uuid; do
   rm -f "$tmpfile"
   echo "✅ Installed $uuid into $install_dir"
 done < "$extensions_file"
-
-# blur-my-shell - enable GNOME 49 support
-
-FILE="/usr/share/gnome-shell/extensions/blur-my-shell@aunetx/metadata.json"
-
-tmp=$(mktemp)
-if jq -e '.["shell-version"] | index("49")' "$FILE" >/dev/null; then
-    echo "GNOME 49 support already present, no changes made."
-else
-    tmp=$(mktemp)
-    jq '.["shell-version"] += ["49"]' "$FILE" > "$tmp"
-    mv "$tmp" "$FILE"
-    chmod 644 "$FILE"
-    echo "GNOME 49 support added to $FILE."
-fi
