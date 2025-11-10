@@ -1,8 +1,16 @@
-#!/usr/bin/bash
-set -euo pipefail
+#!/bin/bash
 
-# Get kernel version and build initramfs
+set -ouex pipefail
+
+echo "#######################################################################################################################"
+echo "Running boot script..."
+
+# Get kernel version
 KERNEL_VERSION="$(dnf5 repoquery --installed --queryformat='%{evr}.%{arch}' kernel)"
+
+export DRACUT_NO_XATTR=1  # suppress xattr warnings
+
+# Rebuild initramfs
 /usr/bin/dracut \
   --no-hostonly \
   --kver "$KERNEL_VERSION" \
