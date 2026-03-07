@@ -16,8 +16,8 @@ default:
 check:
     #!/usr/bin/bash
     find . -type f -name "*.just" | while read -r file; do
-    	echo "Checking syntax: $file"
-    	just --unstable --fmt --check -f $file
+        echo "Checking syntax: $file"
+        just --unstable --fmt --check -f $file
     done
     echo "Checking syntax: Justfile"
     just --unstable --fmt --check -f Justfile
@@ -27,8 +27,8 @@ check:
 fix:
     #!/usr/bin/bash
     find . -type f -name "*.just" | while read -r file; do
-    	echo "Checking syntax: $file"
-    	just --unstable --fmt -f $file
+        echo "Checking syntax: $file"
+        just --unstable --fmt -f $file
     done
     echo "Checking syntax: Justfile"
     just --unstable --fmt -f Justfile || { exit 1; }
@@ -43,7 +43,7 @@ clean:
     rm -f previous.manifest.json
     rm -f changelog.md
     rm -f output.env
-    rm -f output/
+    rm -rf output/
 
 # Sudo Clean Repo
 [group('Utility')]
@@ -156,7 +156,6 @@ _rootful_load_image $target_image $tag:
         just sudoif podman pull "${target_image}:${tag}"
     fi
 
-# Build a bootc bootable image using Bootc Image Builder (BIB)
 # Converts a container image to a bootable image
 # Parameters:
 #   target_image: The name of the image to build (ex. localhost/fedora)
@@ -165,7 +164,7 @@ _rootful_load_image $target_image $tag:
 #   config: The configuration file to use for the build (default: disk_config/disk.toml)
 
 # Example: just _rebuild-bib localhost/fedora latest qcow2 disk_config/disk.toml
-_build-bib $target_image $tag $type $config: (_rootful_load_image target_image tag)
+_build-bib $flavor $target_image $tag $type $config: (build flavor)
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -175,6 +174,8 @@ _build-bib $target_image $tag $type $config: (_rootful_load_image target_image t
 
     BUILDTMP=$(mktemp -p "${PWD}" -d -t _build-bib.XXXXXXXXXX)
 
+    just _rootful_load_image "${target_image}" "${tag}"
+    
     sudo podman run \
       --rm \
       -it \
@@ -190,32 +191,61 @@ _build-bib $target_image $tag $type $config: (_rootful_load_image target_image t
       "{{ target_image }}:{{ tag }}"
 
     mkdir -p output
-    sudo rm -rf "output/${type}"
-    sudo mv -f $BUILDTMP/* output/
-    sudo rmdir $BUILDTMP
-    sudo chown -R $USER:$USER output/
+    
+    # Rename the output file using the flavor name before moving.
+    case "$type" in
+        qcow2 | raw)
+            # The file is located in the $type subdirectory of the temporary build directory
+            SOURCE_FILE="$BUILDTMP/$type/disk.$type"
+            DEST_FILE="output/{{ flavor }}.$type"
+
+            if [ -f "$SOURCE_FILE" ]; then
+                echo "Renaming $SOURCE_FILE to $DEST_FILE"
+                sudo mv -f "$SOURCE_FILE" "$DEST_FILE"
+                sudo chown $USER:$USER "$DEST_FILE"
+            else
+                echo "Error: Output file not found at expected location: $SOURCE_FILE"
+                exit 1
+            fi
+            ;;
+        iso)
+            # ISO is located under 'bootiso'
+            SOURCE_FILE="$BUILDTMP/bootiso/install.iso"
+            DEST_FILE="output/{{ flavor }}.iso"
+            
+            if [ -f "$SOURCE_FILE" ]; then
+                echo "Renaming $SOURCE_FILE to $DEST_FILE"
+                sudo mv -f "$SOURCE_FILE" "$DEST_FILE"
+                sudo chown $USER:$USER "$DEST_FILE"
+            else
+                echo "Error: Output file not found at expected location: $SOURCE_FILE"
+                exit 1
+            fi
+            ;;
+        *)
+            # Fallback for unexpected types
+            echo "Moving $BUILDTMP contents to output/"
+            sudo mv -f $BUILDTMP/* output/
+            ;;
+    esac
+    
+    # Clean up the temp directory
+    sudo rm -rf $BUILDTMP
 
 # Podman builds the image from the Containerfile and creates a bootable image
-# Parameters:
-#   target_image: The name of the image to build (ex. localhost/fedora)
-#   tag: The tag of the image to build (ex. latest)
-#   type: The type of image to build (ex. qcow2, raw, iso)
-#   config: The configuration file to use for the build (deafult: disk_config/disk.toml)
-
-# Example: just _rebuild-bib "bazzite-gnome" localhost/fedora latest qcow2 disk_config/disk.toml
-_rebuild-bib $flavor $target_image $tag $type $config: (build flavor) && (_build-bib target_image tag type config)
+_rebuild-bib $flavor $target_image $tag $type $config: (build flavor) && (_build-bib flavor target_image tag type config)
 
 # Build a QCOW2 virtual machine image
 [group('Build Virtal Machine Image')]
-build-qcow2 $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_build-bib target_image tag "qcow2" ("images/" + flavor + "/disk.toml"))
+build-qcow2 $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_build-bib flavor target_image tag "qcow2" ("images/" + flavor + "/disk.toml"))
 
 # Build a RAW virtual machine image
 [group('Build Virtal Machine Image')]
-build-raw $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_build-bib target_image tag "raw" ("images/" + flavor + "/disk.toml"))
+build-raw $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_build-bib flavor target_image tag "raw" ("images/" + flavor + "/disk.toml"))
 
 # Build an ISO virtual machine image
 [group('Build Virtal Machine Image')]
-build-iso $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_build-bib target_image tag "iso" ("images/" + flavor + "/iso.toml"))
+build-iso $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_build-bib flavor target_image tag "iso" ("images/" + flavor + "/iso.toml"))
 
 # Rebuild a QCOW2 virtual machine image
 [group('Build Virtal Machine Image')]
@@ -228,24 +258,26 @@ rebuild-raw flavor:
     @just _rebuild-bib "{{ flavor }}" "{{ IMAGE_REGISTRY }}/{{ flavor }}" "{{ default_tag }}" "raw" "images/{{ flavor }}/disk.toml"
 
 # Rebuild an ISO virtual machine image
-[group('Build Virtal Machine Image')]
+[group('Build Virtal Machine')]
 rebuild-iso flavor:
     @just _rebuild-bib "{{ flavor }}" "{{ IMAGE_REGISTRY }}/{{ flavor }}" "{{ default_tag }}" "iso" "images/{{ flavor }}/iso.toml"
 
 # Run a virtual machine with the specified image type and configuration
-_run-vm $target_image $tag $type $config:
+_run-vm $flavor $target_image $tag $type $config:
     #!/usr/bin/bash
     set -eoux pipefail
 
-    # Determine the image file based on the type
-    image_file="output/${type}/disk.${type}"
+    # Determine the image file based on the flavor and type
     if [[ $type == iso ]]; then
-        image_file="output/bootiso/install.iso"
+        image_file="output/{{ flavor }}.iso"
+    else
+        image_file="output/{{ flavor }}.${type}"
     fi
 
     # Build the image if it does not exist
     if [[ ! -f "${image_file}" ]]; then
-        just "build-${type}" "$target_image" "$tag"
+        # Use the flavor in the build command
+        just "build-${type}" "{{ flavor }}" "$target_image" "$tag"
     fi
 
     # Determine an available port to use
@@ -276,15 +308,15 @@ _run-vm $target_image $tag $type $config:
 
 # Run a virtual machine from a QCOW2 image
 [group('Run Virtal Machine')]
-run-vm-qcow2 $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_run-vm target_image tag "qcow2" ("images/" + flavor + "/disk.toml"))
+run-vm-qcow2 $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_run-vm flavor target_image tag "qcow2" ("images/" + flavor + "/disk.toml"))
 
 # Run a virtual machine from a RAW image
 [group('Run Virtal Machine')]
-run-vm-raw $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_run-vm target_image tag "raw" ("images/" + flavor + "/disk.toml"))
+run-vm-raw $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_run-vm flavor target_image tag "raw" ("images/" + flavor + "/disk.toml"))
 
 # Run a virtual machine from an ISO
 [group('Run Virtal Machine')]
-run-vm-iso $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_run-vm target_image tag "iso" "disk_config/iso.toml")
+run-vm-iso $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_run-vm flavor target_image tag "iso" "disk_config/iso.toml")
 
 # Run a virtual machine using systemd-vmspawn
 [group('Run Virtal Machine')]
@@ -323,7 +355,7 @@ format:
     set -eoux pipefail
     # Check if shfmt is installed
     if ! command -v shfmt &> /dev/null; then
-        echo "shellcheck could not be found. Please install it."
+        echo "shfmt could not be found. Please install it."
         exit 1
     fi
     # Run shfmt on all Bash scripts

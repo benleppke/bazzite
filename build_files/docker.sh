@@ -1,7 +1,9 @@
 #!/bin/bash
 
-echo "Running docker script..."
 set -ouex pipefail
+
+echo "#######################################################################################################################"
+echo "Running docker script..."
 
 dnf5 install -y \
   --enablerepo=docker-ce \

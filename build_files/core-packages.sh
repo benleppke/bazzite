@@ -1,7 +1,9 @@
 #!/bin/bash
 
-echo "Running core-packages script..."
 set -ouex pipefail
+
+echo "#######################################################################################################################"
+echo "Running core-packages script..."
 
 # Zsh
 dnf5 install -y \
@@ -9,17 +11,21 @@ dnf5 install -y \
   zsh-autosuggestions
 
 # Wine
-dnf5 install -y \
-  wine-mono
+# dnf5 install -y \
+#   dotnet-sdk-8.0
 
 # Install Microsoft fonts
-dnf5 install -y \
-  https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm
+dnf5 -y copr enable dawid/better_fonts \
+ && dnf5 install -y --enablerepo=dawid/better_fonts mscorefonts
 
 # Codium
 dnf5 install -y \
   --enablerepo=vscodium \
     codium
+
+# Gparted
+dnf5 install -y \
+  gparted
 
 # Gnome Initial Setup
 dnf5 install -y \
