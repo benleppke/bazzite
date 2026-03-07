@@ -26,9 +26,7 @@ flowbow_sprite.SetY(screen.half.h - (image_height / 2));
 progress = 0;
 
 fun refresh_callback () {
-  # We use % 63 to loop the animation indefinitely
-  # Adjust the division (progress / 1) to slow down the animation if it's too fast
-  flowbow_sprite.SetImage(flowbow_image[Math.Int(progress) % 63]);
+  flowbow_sprite.SetImage(flowbow_image[Math.Int(progress / 2) % 63]);
   progress++;
 }
 
