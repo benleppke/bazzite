@@ -1,0 +1,9 @@
+[Plymouth Theme]
+Name=flowbow
+Description=flowbow
+Comment=created By Ben
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/flowbow
+ScriptFile=/usr/share/plymouth/themes/flowbow/flowbow.script

@@ -1,0 +1,76 @@
+// Flowbow Plymouth Theme
+
+// Get Screen Dimensions
+screen.w = Window.GetWidth();
+screen.h = Window.GetHeight();
+screen.half.w = screen.w / 2;
+screen.half.h = screen.h / 2;
+
+// Asset Dimensions
+image_width = 400;
+image_height = 400;
+
+//--------------------------------- Animation Setup --------------------------
+
+# Load all 63 frames (progress-0.png through progress-62.png)
+for (i = 0; i < 63; i++) {
+  flowbow_image[i] = Image("progress-" + i + ".png");
+}
+
+flowbow_sprite = Sprite();
+
+# Perfectly center the 400x400 sprite
+flowbow_sprite.SetX(screen.half.w - (image_width / 2));
+flowbow_sprite.SetY(screen.half.h - (image_height / 2));
+
+progress = 0;
+
+fun refresh_callback () {
+  flowbow_sprite.SetImage(flowbow_image[Math.Int(progress / 2) % 63]);
+  progress++;
+}
+
+Plymouth.SetRefreshFunction (refresh_callback);
+
+//------------------------------------- Text & Password UI -------------------------------
+# Initialize basic text requirements
+bullet.image = Image.Text("*", 1, 1, 1);
+
+fun DisplayQuestionCallback(prompt, entry) {
+    question.image = Image.Text(prompt, 1, 1, 1);
+    question.sprite = Sprite(question.image);
+    question.sprite.SetX(screen.half.w - question.image.GetWidth() / 2);
+    question.sprite.SetY(screen.h - 150); # Offset from bottom
+
+    answer.image = Image.Text(entry, 1, 1, 1);
+    answer.sprite = Sprite(answer.image);
+    answer.sprite.SetX(screen.half.w - answer.image.GetWidth() / 2);
+    answer.sprite.SetY(screen.h - 100);
+}
+Plymouth.SetDisplayQuestionFunction(DisplayQuestionCallback);
+
+fun DisplayPasswordCallback(nil, bulletCount) {
+    prompt.image = Image.Text("Enter Password", 1, 1, 1);
+    prompt.sprite = Sprite(prompt.image);
+    prompt.sprite.SetX(screen.half.w - prompt.image.GetWidth() / 2);
+    prompt.sprite.SetY(screen.h - 150);
+
+    totalWidth = bulletCount * bullet.image.GetWidth();
+    startPos = screen.half.w - totalWidth / 2;
+
+    bullets = null;
+    for (i = 0; i < bulletCount; i++) {
+        bullets[i].sprite = Sprite(bullet.image);
+        bullets[i].sprite.SetX(startPos + i * bullet.image.GetWidth());
+        bullets[i].sprite.SetY(screen.h - 100);
+    }
+}
+Plymouth.SetDisplayPasswordFunction(DisplayPasswordCallback);
+
+fun DisplayNormalCallback() {
+    bullets = null;
+    prompt = null;
+    question = null;
+    answer = null;
+}
+Plymouth.SetDisplayNormalFunction(DisplayNormalCallback);
