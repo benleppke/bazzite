@@ -22,4 +22,4 @@ export DRACUT_NO_XATTR=1  # suppress xattr warnings
 
 chmod 0600 "/usr/lib/modules/$KERNEL_VERSION/initramfs.img"
 
-dnf5 install -y plymouth-plugin-script --disableexcludes=all
+dnf5 install -y plymouth-plugin-script
