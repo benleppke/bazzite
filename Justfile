@@ -174,8 +174,7 @@ _build-bib $flavor $target_image $tag $type $config: (build flavor)
 
     BUILDTMP=$(mktemp -p "${PWD}" -d -t _build-bib.XXXXXXXXXX)
 
-    
-    just sudoif podman pull "${target_image}:${tag}"
+    just _rootful_load_image "${target_image}" "${tag}"
     
     sudo podman run \
       --rm \
