@@ -12,21 +12,35 @@ image_height = 400;
 
 //--------------------------------- Animation Setup --------------------------
 
-# Load all 63 frames (progress-0.png through progress-62.png)
-for (i = 0; i < 63; i++) {
+# Get all frames
+for (i = 0; i < 62; i++) {
   flowbow_image[i] = Image("progress-" + i + ".png");
 }
 
-flowbow_sprite = Sprite();
+# Find how many monitors are connected
+for (i = 0; i < Window.GetMaxSpriters(); i++) {
+  flowbow_sprites[i] = Sprite();
+  
+  # Get individual monitor dimensions
+  screen_w = Window.GetWidth(i);
+  screen_h = Window.GetHeight(i);
+  screen_x = Window.GetX(i);
+  screen_y = Window.GetY(i);
 
-# Perfectly center the 400x400 sprite
-flowbow_sprite.SetX(screen.half.w - (image_width / 2));
-flowbow_sprite.SetY(screen.half.h - (image_height / 2));
+  # Center within specific monitor's coordinates
+  flowbow_sprites[i].SetX(screen_x + (screen_w / 2) - (400 / 2));
+  flowbow_sprites[i].SetY(screen_y + (screen_h / 2) - (400 / 2));
+}
 
 progress = 0;
 
 fun refresh_callback () {
-  flowbow_sprite.SetImage(flowbow_image[Math.Int(progress / 2) % 63]);
+  image_index = Math.Int(progress / 2) % 62;
+  
+  # Update EVERY sprite in the refresh loop
+  for (i = 0; i < Window.GetMaxSpriters(); i++) {
+    flowbow_sprites[i].SetImage(flowbow_image[image_index]);
+  }
   progress++;
 }
 
