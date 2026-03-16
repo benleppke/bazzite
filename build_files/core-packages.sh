@@ -10,9 +10,8 @@ dnf5 install -y \
   zsh \
   zsh-autosuggestions
 
-# Wine
-# dnf5 install -y \
-#   dotnet-sdk-8.0
+# Silence global profile.d sourcing in zsh to prevent terminal escape sequences
+sed -i '/\. $i/ s|\. \$i|\. \$i >/dev/null 2>\&1|' /etc/zshrc
 
 # Install Microsoft fonts
 dnf5 -y copr enable dawid/better_fonts \
