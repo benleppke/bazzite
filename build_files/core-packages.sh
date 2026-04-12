@@ -23,6 +23,11 @@ dnf5 install -y \
   --enablerepo=vscodium \
     codium
 
+# Firefox PWA
+dnf5 install -y \
+  --enablerepo=firefoxpwa \
+    firefoxpwa
+
 # Gparted
 dnf5 install -y \
   gparted
