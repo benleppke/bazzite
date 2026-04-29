@@ -95,15 +95,14 @@ jobs:
       - name: Inspect Upstream Image
         id: inspect_upstream
         run: |
-          # Use tail -n 1 to get the final FROM statement (the actual base image)
           UPSTREAM_IMAGE=$(grep '^FROM' ${{ env.FLAVOR_DIR }}/Containerfile | tail -n 1 | awk '{print $2}')
           echo "Upstream Image: $UPSTREAM_IMAGE"
 
           podman pull "$UPSTREAM_IMAGE"
 
           UPSTREAM_SHA=$(podman inspect --format '{{.Digest}}' "$UPSTREAM_IMAGE")
-          FEDORA_VERSION=$(podman run --rm "$UPSTREAM_IMAGE" sh -c 'source /etc/os-release && echo $VERSION_ID')
-          GNOME_VERSION=$(podman run --rm "$UPSTREAM_IMAGE" gnome-shell --version 2>/dev/null | awk '{print $3}' || echo "Not Found")
+          FEDORA_VERSION=$(podman run --rm --cgroups=disabled "$UPSTREAM_IMAGE" sh -c 'source /etc/os-release && echo $VERSION_ID')
+          GNOME_VERSION=$(podman run --rm --cgroups=disabled "$UPSTREAM_IMAGE" gnome-shell --version 2>/dev/null | awk '{print $3}' || echo "Not Found")
 
           # Summary for GitHub UI
           echo "### Upstream Details: ${{ matrix.flavor }}" >> $GITHUB_STEP_SUMMARY
