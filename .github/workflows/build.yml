@@ -92,6 +92,33 @@ jobs:
           # https://linux.die.net/man/1/date
           echo "date=$(date -u +%Y\-%m\-%d\T%H\:%M\:%S\Z)" >> $GITHUB_OUTPUT
 
+      - name: Inspect Upstream Image
+        id: inspect_upstream
+        run: |
+          UPSTREAM_IMAGE=$(grep '^FROM' ${{ env.FLAVOR_DIR }}/Containerfile | tail -n 1 | awk '{print $2}')
+          echo "Upstream Image: $UPSTREAM_IMAGE"
+
+          podman pull "$UPSTREAM_IMAGE"
+
+          UPSTREAM_SHA=$(podman inspect --format '{{.Digest}}' "$UPSTREAM_IMAGE")
+          echo "Upstream SHA: $UPSTREAM_SHA"
+          FEDORA_VERSION=$(podman run --rm --cgroups=disabled "$UPSTREAM_IMAGE" sh -c 'source /etc/os-release && echo $VERSION_ID')
+          echo "Fedora Version: $FEDORA_VERSION"
+          GNOME_VERSION=$(podman run --rm --cgroups=disabled "$UPSTREAM_IMAGE" gnome-shell --version 2>/dev/null | awk '{print $3}' || echo "Not Found")
+          echo "GNOME Version: $GNOME_VERSION"
+
+          # Summary for GitHub UI
+          echo "### Upstream Details: ${{ matrix.flavor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: $UPSTREAM_IMAGE" >> $GITHUB_STEP_SUMMARY
+          echo "- **SHA**: \`$UPSTREAM_SHA\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Fedora Version**: $FEDORA_VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **GNOME Version**: $GNOME_VERSION" >> $GITHUB_STEP_SUMMARY
+
+          # Export for labels
+          echo "UPSTREAM_SHA=$UPSTREAM_SHA" >> $GITHUB_ENV
+          echo "FEDORA_VERSION=$FEDORA_VERSION" >> $GITHUB_ENV
+          echo "GNOME_VERSION=$GNOME_VERSION" >> $GITHUB_ENV
+
       # Image metadata for https://artifacthub.io/ - This is optional but is highly recommended so we all can get a index of all the custom images
       # The metadata by itself is not going to do anything, you choose if you want your image to be on ArtifactHub or not.
       - name: Image Metadata
@@ -125,6 +152,9 @@ jobs:
             io.artifacthub.package.keywords=${{ env.IMAGE_KEYWORDS }}
             io.artifacthub.package.license=Apache-2.0
             io.artifacthub.package.logo-url=${{ env.IMAGE_LOGO_URL }}
+            org.opencontainers.image.base.digest=${{ env.UPSTREAM_SHA }}
+            fedora.os_version=${{ env.FEDORA_VERSION }}
+            gnome.version=${{ env.GNOME_VERSION }}
             io.artifacthub.package.prerelease=false
             containers.bootc=1
           sep-tags: " "
