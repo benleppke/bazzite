@@ -92,6 +92,33 @@ jobs:
           # https://linux.die.net/man/1/date
           echo "date=$(date -u +%Y\-%m\-%d\T%H\:%M\:%S\Z)" >> $GITHUB_OUTPUT
 
+      - name: Inspect Upstream Image
+        id: inspect_upstream
+        run: |
+          UPSTREAM_IMAGE=$(grep '^FROM' ${{ env.FLAVOR_DIR }}/Containerfile | tail -n 1 | awk '{print $2}')
+          echo "Upstream Image: $UPSTREAM_IMAGE"
+
+          podman pull "$UPSTREAM_IMAGE"
+
+          UPSTREAM_SHA=$(podman inspect --format '{{.Digest}}' "$UPSTREAM_IMAGE")
+          echo "Upstream SHA: $UPSTREAM_SHA"
+          FEDORA_VERSION=$(podman run --rm --cgroups=disabled "$UPSTREAM_IMAGE" sh -c 'source /etc/os-release && echo $VERSION_ID')
+          echo "Fedora Version: $FEDORA_VERSION"
+          GNOME_VERSION=$(podman run --rm --cgroups=disabled "$UPSTREAM_IMAGE" gnome-shell --version 2>/dev/null | awk '{print $3}' || echo "Not Found")
+          echo "GNOME Version: $GNOME_VERSION"
+
+          # Summary for GitHub UI
+          echo "### Upstream Details: ${{ matrix.flavor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: $UPSTREAM_IMAGE" >> $GITHUB_STEP_SUMMARY
+          echo "- **SHA**: \`$UPSTREAM_SHA\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Fedora Version**: $FEDORA_VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **GNOME Version**: $GNOME_VERSION" >> $GITHUB_STEP_SUMMARY
+
+          # Export for labels
+          echo "UPSTREAM_SHA=$UPSTREAM_SHA" >> $GITHUB_ENV
+          echo "FEDORA_VERSION=$FEDORA_VERSION" >> $GITHUB_ENV
+          echo "GNOME_VERSION=$GNOME_VERSION" >> $GITHUB_ENV
+
       # Image metadata for https://artifacthub.io/ - This is optional but is highly recommended so we all can get a index of all the custom images
       # The metadata by itself is not going to do anything, you choose if you want your image to be on ArtifactHub or not.
       - name: Image Metadata
@@ -125,6 +152,9 @@ jobs:
             io.artifacthub.package.keywords=${{ env.IMAGE_KEYWORDS }}
             io.artifacthub.package.license=Apache-2.0
             io.artifacthub.package.logo-url=${{ env.IMAGE_LOGO_URL }}
+            org.opencontainers.image.base.digest=${{ env.UPSTREAM_SHA }}
+            fedora.os_version=${{ env.FEDORA_VERSION }}
+            gnome.version=${{ env.GNOME_VERSION }}
             io.artifacthub.package.prerelease=false
             containers.bootc=1
           sep-tags: " "
@@ -192,7 +222,7 @@ jobs:
       # using Cosign and save the private key as a repository secret in Github for this workflow
       # to consume. For more details, review the image signing section of the README.
       - name: Install Cosign
-        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
 
       - name: Sign container image
