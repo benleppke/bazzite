@@ -1,4 +1,3 @@
 accent-directories@taiwbi.com
 burn-my-windows@schneegans.github.com
 clipboard-history@alexsaveau.dev
-gnome-ui-tune@itstime.tech
