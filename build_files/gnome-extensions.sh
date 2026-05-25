@@ -43,3 +43,27 @@ while IFS= read -r uuid; do
   rm -f "$tmpfile"
   echo "✅ Installed $uuid into $install_dir"
 done < "$extensions_file"
+
+# --- gnome-rounded-blur ---
+echo "Fetching gnome-rounded-blur..."
+GITLAB_PROJECT_ID="82111358"
+
+fedora=""
+if rpm -q fedora-release &>/dev/null; then
+  fedora=$(rpm -q --qf "%{VERSION}" fedora-release | cut -d'.' -f1)
+fi
+if [ -z "$fedora" ]; then
+  fedora=$(grep -oP 'VERSION_ID="?\K[^" ]+' /etc/os-release | cut -d'.' -f1)
+fi
+
+TAG="gnome-rounded-blur-f${fedora}-gnome${gnome_version}"
+echo "Tag: $TAG"
+
+curl -sfL -o /tmp/gnome-rounded-blur.zip \
+  "https://gitlab.com/api/v4/projects/${GITLAB_PROJECT_ID}/packages/generic/gnome-rounded-blur/${TAG}/gnome-rounded-blur.zip"
+
+unzip -o /tmp/gnome-rounded-blur.zip -d /tmp/gnome-rounded-blur
+cp -a /tmp/gnome-rounded-blur/usr/* /usr/
+/sbin/ldconfig
+
+echo "✅ gnome-rounded-blur installed for Fedora $fedora / GNOME $gnome_version"
