@@ -64,24 +64,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            btrfs-progs fuse-overlayfs
-
-      - name: Create Btrfs target directory
-        run: mkdir -p /tmp/ubluecontainers
-
-      - name: Create and mount Btrfs loopback for podman storage
-        run: |
-          sudo umount /tmp/ubluecontainers || true
-          rm -f /tmp/btrfs-volume.img
-
-          fallocate -l 6G /tmp/btrfs-volume.img
-          mkfs.btrfs /tmp/btrfs-volume.img
-
-          mkdir -p /tmp/ubluecontainers
-          sudo mount -o loop /tmp/btrfs-volume.img /tmp/ubluecontainers
-
-      # - name: Mount BTRFS for podman storage
-      #   uses: ublue-os/container-storage-action@main
+            fuse-overlayfs
 
       - name: Get current date
         id: date
@@ -170,6 +153,8 @@ jobs:
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
           oci: false
+          layers: true
+          squash: false
 
       # Rechunk is a script that we use on Universal Blue to make sure there isnt a single huge layer when your image gets published.
       # This does not make your image faster to download, just provides better resumability and fixes a few errors.
