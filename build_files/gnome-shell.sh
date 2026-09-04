@@ -13,18 +13,17 @@ dnf5 install -y \
   papirus-icon-theme-dark \
   papirus-icon-theme-light
 
-# Additional Papirus Folder Icons and Nautilus Custom Icon Name
-shopt -s nullglob
+# Additional Papirus Icons
 
 echo "Installing Additional Papirus Folder Icons..."
-git clone https://gitlab.com/benleppke/papirus-folder-icons.git --depth 1
-
-./papirus-folder-icons/setup.sh --install --system --force
+dnf5 install -y --enablerepo=benleppke papirus-folder-icons
 
 echo "Installing Additional Papirus Icons..."
 git clone https://gitlab.com/benleppke/papirus-icons.git --depth 1
 
 ./papirus-icons/setup.sh --install --system --force
+
+# Nautilus Custom Icon Name
 
 echo "Installing Nautilus Custom Icon Name..."
 dnf5 install -y --enablerepo=benleppke nautilus-custom-icon-name
