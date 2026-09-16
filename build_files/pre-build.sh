@@ -15,5 +15,6 @@ export GNUPGHOME=/tmp/gnupg
 mkdir -p "$GNUPGHOME"
 chmod 700 "$GNUPGHOME"
 
-# Use a temporary dnf5 cache to prevent including /var/lib/dnf in the final image
-export DNF5_SYSTEM_CACHEDIR=/tmp/dnf-cache
+# Use a persistent dnf5 cache on the /var/cache cache mount to keep it out of
+# the final image and off the tmpfs /tmp (which would put it in host RAM)
+export DNF5_SYSTEM_CACHEDIR=/var/cache/libdnf5
