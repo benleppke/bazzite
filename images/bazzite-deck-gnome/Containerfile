@@ -4,10 +4,12 @@ COPY build_files /
 FROM ghcr.io/ublue-os/bazzite-deck-gnome:stable
 COPY system_files /
 
+ARG CONTENT_HASH
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
+    CONTENT_HASH=$CONTENT_HASH \
     /ctx/pre-build.sh && \
     /ctx/core-packages.sh && \
     /ctx/docker.sh && \
