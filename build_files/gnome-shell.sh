@@ -16,7 +16,7 @@ dnf5 install -y \
 # Additional Papirus Icons
 
 echo "Installing Additional Papirus Folder Icons..."
-dnf5 install -y --enablerepo=benleppke papirus-folder-icons
+dnf5 install -y --enablerepo=benleppke papirus-folder-icons-0.1.0
 
 echo "Installing Additional Papirus Icons..."
 git clone https://gitlab.com/benleppke/papirus-icons.git --depth 1
@@ -26,4 +26,4 @@ git clone https://gitlab.com/benleppke/papirus-icons.git --depth 1
 # Nautilus Custom Icon Name
 
 echo "Installing Nautilus Custom Icon Name..."
-dnf5 install -y --enablerepo=benleppke nautilus-custom-icon-name
+dnf5 install -y --enablerepo=benleppke nautilus-custom-icon-name-0.6.1
