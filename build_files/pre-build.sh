@@ -15,5 +15,7 @@ export GNUPGHOME=/tmp/gnupg
 mkdir -p "$GNUPGHOME"
 chmod 700 "$GNUPGHOME"
 
-# Use a temporary dnf5 cache to prevent including /var/lib/dnf in the final image
-export DNF5_SYSTEM_CACHEDIR=/tmp/dnf-cache
+# Redirect dnf5's metadata/download cache into the build's tmpfs /tmp so it is
+# always fresh and never baked into the image or the persistent /var/cache.
+mkdir -p /etc/dnf/libdnf5.conf.d
+printf '[main]\nsystem_cachedir=/tmp/dnf-cache\n' > /etc/dnf/libdnf5.conf.d/99-build.conf
