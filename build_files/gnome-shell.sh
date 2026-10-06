@@ -13,8 +13,8 @@ dnf5 install -y \
 
 # GNOME Shell extensions from repo.benleppke.com
 echo "Installing GNOME Shell extensions from repo.benleppke.com..."
-dnf5 install -y --enablerepo=benleppke o-tiling-0.1.0
-dnf5 install -y --enablerepo=benleppke rounded-window-corners-0.1.0
+dnf5 install -y --enablerepo=benleppke gnome-extension-o-tiling-0.1.0
+dnf5 install -y --enablerepo=benleppke gnome-extension-rounded-window-corners-0.1.0
 
 # Additional Papirus Icons
 

@@ -34,7 +34,7 @@
       "depNameTemplate": "benleppke/o-tiling",
       "packageNameTemplate": "benleppke/o-tiling",
       "matchStrings": [
-        "dnf5 install -y --enablerepo=benleppke o-tiling-(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)"
+        "dnf5 install -y --enablerepo=benleppke gnome-extension-o-tiling-(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)"
       ]
     },
     {
@@ -44,7 +44,7 @@
       "depNameTemplate": "benleppke/rounded-window-corners",
       "packageNameTemplate": "benleppke/rounded-window-corners",
       "matchStrings": [
-        "dnf5 install -y --enablerepo=benleppke rounded-window-corners-(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)"
+        "dnf5 install -y --enablerepo=benleppke gnome-extension-rounded-window-corners-(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)"
       ]
     }
   ],
