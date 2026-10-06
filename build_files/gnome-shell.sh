@@ -5,13 +5,16 @@ set -ouex pipefail
 echo "#######################################################################################################################"
 echo "Running gnome-shell script..."
 
-# Pop Shell extensions and sound/icon themes
+# Sound/icon themes
 dnf5 install -y \
-  gnome-shell-extension-pop-shell \
-  gnome-shell-extension-pop-shell-shortcut-overrides \
   ocean-sound-theme \
   papirus-icon-theme-dark \
   papirus-icon-theme-light
+
+# GNOME Shell extensions from repo.benleppke.com
+echo "Installing GNOME Shell extensions from repo.benleppke.com..."
+dnf5 install -y --enablerepo=benleppke gnome-extension-o-tiling-0.1.0
+dnf5 install -y --enablerepo=benleppke gnome-extension-rounded-window-corners-0.1.0
 
 # Additional Papirus Icons
 
