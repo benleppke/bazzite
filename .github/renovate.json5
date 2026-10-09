@@ -31,10 +31,10 @@
       "customType": "regex",
       "managerFilePatterns": ["/^build_files\\/gnome-shell\\.sh$/"],
       "datasourceTemplate": "gitlab-tags",
-      "depNameTemplate": "benleppke/o-tiling",
-      "packageNameTemplate": "benleppke/o-tiling",
+      "depNameTemplate": "benleppke/tiling-shell",
+      "packageNameTemplate": "benleppke/tiling-shell",
       "matchStrings": [
-        "dnf5 install -y --enablerepo=benleppke gnome-extension-o-tiling-(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)"
+        "dnf5 install -y --enablerepo=benleppke gnome-extension-tiling-shell-(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)"
       ]
     },
     {
@@ -65,7 +65,7 @@
       "matchPackageNames": [
         "benleppke/nautilus-custom-icon-name",
         "benleppke/papirus-folder-icons",
-        "benleppke/o-tiling",
+        "benleppke/tiling-shell",
         "benleppke/rounded-window-corners"
       ]
     },
