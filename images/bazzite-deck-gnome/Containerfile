@@ -1,7 +1,7 @@
 FROM scratch AS ctx
 COPY build_files /
 
-FROM ghcr.io/ublue-os/bazzite-deck-gnome:stable
+FROM ghcr.io/ublue-os/bazzite-deck-gnome:stable@sha256:905188d7e8e29dc02d4f8e92b259823a65ad01d2f99e3ba1dd75de655c2b412d
 COPY system_files /
 
 ARG CONTENT_HASH

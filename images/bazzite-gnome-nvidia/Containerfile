@@ -1,7 +1,7 @@
 FROM scratch AS ctx
 COPY build_files /
 
-FROM ghcr.io/ublue-os/bazzite-gnome-nvidia:stable
+FROM ghcr.io/ublue-os/bazzite-gnome-nvidia:stable@sha256:dbe824a534a6bf726a99bbdecc57ca77af6b17caf450b5a4307fa4ae509d3be2
 COPY system_files /
 
 ARG CONTENT_HASH
