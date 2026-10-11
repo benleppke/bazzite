@@ -61,6 +61,13 @@
       "matchFileNames": [".github/workflows/**.yaml", ".github/workflows/**.yml"],
     },
     {
+      // Keep the rolling uBlue base images on their floating `:stable` tags.
+      "enabled": false,
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["/bazzite-/"],
+      "matchUpdateTypes": ["digest", "pinDigest", "pin"],
+    },
+    {
       "automerge": true,
       "matchPackageNames": [
         "benleppke/nautilus-custom-icon-name",
