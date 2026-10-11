@@ -29,4 +29,4 @@ git clone https://gitlab.com/benleppke/papirus-icons.git --depth 1
 # Nautilus Custom Icon Name
 
 echo "Installing Nautilus Custom Icon Name..."
-dnf5 install -y --enablerepo=benleppke nautilus-custom-icon-name-0.6.1
+dnf5 install -y --enablerepo=benleppke nautilus-custom-icon-name-0.6.3
