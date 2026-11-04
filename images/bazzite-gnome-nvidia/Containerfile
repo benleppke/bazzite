@@ -18,5 +18,6 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/cli-tools.sh && \
     /ctx/boot.sh
 
-RUN ostree container commit
-RUN bootc container lint
+RUN --mount=type=tmpfs,target=/run \
+    --network=none \
+    bootc container lint
