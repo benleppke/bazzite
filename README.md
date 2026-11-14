@@ -135,6 +135,14 @@ just build-rootful bazzite-gnome
 just build-live-iso-from-source bazzite-gnome
 ```
 
+To package an existing payload into an ISO without rebuilding the payload:
+
+```bash
+just package-live-iso bazzite-gnome
+```
+
+Local ISO packaging uses the vendored `scripts/titanoboa/build_iso.sh` in a Fedora container, so it does not depend on the private Titanoboa container image.
+
 `just build` still uses rootless Podman and the primary disk. Use `build-rootful` for SSD-only local builds.
 
 Clean up build outputs without removing the image cache:
@@ -210,7 +218,7 @@ This `Justfile` contains various commands and configurations for building and ma
 - `image_name`: The name of the image (default: "image-template").
 - `default_tag`: The default tag for the image (default: "latest").
 - `bib_image`: The Bootc Image Builder (BIB) image (default: "quay.io/centos-bootc/bootc-image-builder:latest").
-- `titanoboa_image`: The Titanoboa container image used for live ISOs (default: "ghcr.io/ublue-os/titanoboa:latest").
+- `titanoboa_runtime_image`: The Fedora container used to run Titanoboa's ISO builder (default: "quay.io/fedora/fedora:latest").
 - `BUILD_ROOT`: Rootful Podman storage, temp, and output directory (default: `build/` in the repo; loaded from `.env`).
 
 #### Aliases
@@ -328,6 +336,14 @@ Builds only the Titanoboa installer payload image.
 
 ```bash
 just build-installer-payload $flavor
+```
+
+###### `package-live-iso`
+
+Packages an existing `localhost/payload-$flavor:latest` image into a live ISO without rebuilding the payload.
+
+```bash
+just package-live-iso $flavor
 ```
 
 ###### `rebuild-qcow2`

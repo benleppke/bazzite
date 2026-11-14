@@ -3,7 +3,7 @@ set dotenv-load
 export image_name := env("IMAGE_NAME", "bazzite")
 export default_tag := env("DEFAULT_TAG", "latest")
 export bib_image := env("BIB_IMAGE", "quay.io/centos-bootc/bootc-image-builder:latest")
-export titanoboa_image := env("TITANOBOA_IMAGE", "ghcr.io/ublue-os/titanoboa:latest")
+export titanoboa_runtime_image := env("TITANOBOA_RUNTIME_IMAGE", "quay.io/fedora/fedora:latest")
 export IMAGE_REGISTRY := env("IMAGE_REGISTRY", "ghcr.io/benleppke")
 
 # Rootful build storage and artifacts. Override BUILD_ROOT in .env to keep
@@ -350,39 +350,47 @@ _build-installer-payload $flavor $target_image $tag:
       -o "${TARGET_ARCHIVE}" \
       "{{ target_image }}:{{ tag }}"
 
+    TARGET_ID=$(./scripts/podman-rootful.sh image inspect --format=json "{{ target_image }}:{{ tag }}" | jq -r '.[0].Id')
+
     ./scripts/podman-rootful.sh build \
       --cap-add sys_admin \
       --security-opt label=disable \
       --volume "${TARGET_ARCHIVE}":/target-image.oci:ro \
       --build-arg BASE_IMAGE="${IMAGE_REGISTRY}/${payload_base}:{{ tag }}" \
       --build-arg INSTALL_IMAGE_PAYLOAD="{{ target_image }}:{{ tag }}" \
+      --build-arg TARGET_IMAGE_ID="${TARGET_ID}" \
       --build-arg FLATPAK_DIR_SHORTNAME=gnome_flatpaks \
       -t "localhost/payload-{{ flavor }}:{{ tag }}" \
       installer/
 
-# Build a live ISO with Titanoboa from an installer payload.
+# Package an existing installer payload into a live ISO with Titanoboa.
 # Parameters:
-#   flavor: The flavor being installed (ex. bazzite-gnome-nvidia)
-#   target_image: The container image to embed for installation
-#   tag: The tag of the image to embed
+#   flavor: The flavor being packaged (ex. bazzite-gnome-nvidia)
+#   tag: The tag of the payload image
 #
-# Example: just _build-live-iso bazzite-gnome-nvidia ghcr.io/benleppke/bazzite-gnome-nvidia latest
-_build-live-iso $flavor $target_image $tag: (_build-installer-payload flavor target_image tag)
+# Example: just _package-live-iso bazzite-gnome-nvidia latest
+_package-live-iso $flavor $tag:
     #!/usr/bin/env bash
     set -euo pipefail
+
+    if ! ./scripts/podman-rootful.sh image exists "localhost/payload-{{ flavor }}:{{ tag }}"; then
+        echo "Error: payload image localhost/payload-{{ flavor }}:{{ tag }} not found." >&2
+        echo "Run 'just build-live-iso {{ flavor }}' or 'just build-installer-payload {{ flavor }}' first." >&2
+        exit 1
+    fi
 
     BUILDTMP=$(mktemp -p "{{ BUILD_TMP_DIR }}" -d -t _build-live.XXXXXXXXXX)
     trap 'sudo rm -rf "${BUILDTMP}"' EXIT
 
     ./scripts/podman-rootful.sh run \
       --rm \
-      -it \
       --cap-add sys_admin \
       --security-opt label=disable \
       -v "${BUILDTMP}":/output \
-      -v "{{ PODMAN_GRAPHROOT }}":/usr/lib/containers/storage:ro \
+      -v "$(pwd)/scripts/titanoboa/build_iso.sh":/src/build_iso.sh:ro \
       --mount type=image,source="localhost/payload-{{ flavor }}:{{ tag }}",dst=/rootfs \
-      "{{ titanoboa_image }}"
+      "{{ titanoboa_runtime_image }}" \
+      /src/build_iso.sh
 
     iso_file=$(find "${BUILDTMP}" -maxdepth 1 -name '*.iso' -print -quit)
     if [[ -z "${iso_file}" ]]; then
@@ -395,6 +403,16 @@ _build-live-iso $flavor $target_image $tag: (_build-installer-payload flavor tar
     sudo chown "$USER:$USER" "{{ BUILD_OUTPUT_DIR }}/{{ flavor }}-live.iso"
     (cd "{{ BUILD_OUTPUT_DIR }}" && sha256sum "{{ flavor }}-live.iso" > "{{ flavor }}-live.iso-CHECKSUM")
     echo "Live ISO: {{ BUILD_OUTPUT_DIR }}/{{ flavor }}-live.iso"
+
+# Build the payload and then package it into a live ISO.
+# Parameters:
+#   flavor: The flavor being installed (ex. bazzite-gnome-nvidia)
+#   target_image: The container image to embed for installation
+#   tag: The tag of the image to embed
+#
+# Example: just _build-live-iso bazzite-gnome-nvidia ghcr.io/benleppke/bazzite-gnome-nvidia latest
+_build-live-iso $flavor $target_image $tag: (_build-installer-payload flavor target_image tag)
+    @just _package-live-iso "{{ flavor }}" "{{ tag }}"
 
 # Podman builds the image from the Containerfile and creates a bootable image
 _rebuild-bib $flavor $target_image $tag $type $config: (build-rootful flavor) && (_build-bib flavor target_image tag type config)
@@ -422,6 +440,10 @@ build-live-iso-from-source $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor)
 # Build the Titanoboa installer payload only
 [group('Build Live ISO')]
 build-installer-payload $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_build-installer-payload flavor target_image tag)
+
+# Package an existing installer payload into a live ISO
+[group('Build Live ISO')]
+package-live-iso $flavor $tag=default_tag: && (_package-live-iso flavor tag)
 
 # Rebuild a live ISO with Titanoboa
 [group('Build Live ISO')]

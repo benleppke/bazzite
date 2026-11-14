@@ -34,6 +34,9 @@ target container image that Anaconda installs from local storage.
 - `build.sh` loads `/target-image.oci` when present. Local builds mount an OCI
   archive of the target image so from-source builds use the image in the build
   storage instead of pulling the published tag.
+- `Containerfile` accepts `TARGET_IMAGE_ID` and passes it to the build
+  environment only so Buildah invalidates the payload RUN cache when the
+  target image changes. The archive itself is not part of the RUN cache key.
 - The live-session hardware helper matches `*bazzite*` instead of `bazzite*`.
 - `gnome_flatpaks/flatpaks` has the duplicate `protontricks` entry removed.
 
