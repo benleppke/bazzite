@@ -67,11 +67,13 @@ embeds the selected flavor image for offline installation, and then packages
 it with Titanoboa.
 
 - `workflow_dispatch` input `flavor`: `all`, `bazzite-gnome`,
-  `bazzite-gnome-nvidia`, or `bazzite-deck-gnome`.
-- Output: `bazzite-<flavor>-live-latest-amd64.iso`, checksum, cosign
-  signature, and build provenance attestation.
+  `bazzite-gnome-nvidia`, or `bazzite-deck-gnome`. The workflow also runs
+  weekly on Sunday at 02:00 UTC and builds all three flavors.
+- Output per flavor: `bazzite-<flavor>-live-amd64.iso`, a `.sha256` checksum,
+  a cosign `.sig`, extracted netboot assets, and a `manifest.json`.
 - Runner requirements: self-hosted runner with rootful Podman, passwordless
-  `sudo`, and at least 80G free in container storage.
+  `sudo`, rclone, access to Backblaze B2, and at least 80G free in container
+  storage plus 25G in the workspace.
 
 Build locally with:
 
@@ -95,12 +97,54 @@ just build-installer-payload bazzite-gnome
 just package-live-iso bazzite-gnome
 ```
 
+To extract the netboot kernel, initrd, and squashfs from a built ISO:
+
+```bash
+just build-netboot-assets bazzite-gnome
+```
+
 Local ISO packaging uses the vendored
 [`scripts/titanoboa/build_iso.sh`](scripts/titanoboa/build_iso.sh) in a Fedora
 container, so it does not depend on the private Titanoboa container image. The
 installer files are vendored from `ublue-os/bazzite`; see
 [`installer/README.md`](installer/README.md) for the pinned upstream commit and
 local changes.
+
+### Downloads
+
+Scheduled builds publish to Backblaze B2 behind `isos.benleppke.com`. Dated
+snapshots are kept for roughly four weeks; `latest` always points at the most
+recent successful build.
+
+Stable links:
+
+```text
+https://isos.benleppke.com/bazzite/latest/bazzite-gnome-live-amd64.iso
+https://isos.benleppke.com/bazzite/latest/bazzite-gnome-nvidia-live-amd64.iso
+https://isos.benleppke.com/bazzite/latest/bazzite-deck-gnome-live-amd64.iso
+```
+
+Each ISO has a `.sha256` and `.sig` next to it. The machine-readable index is:
+
+```text
+https://isos.benleppke.com/bazzite/latest/index.json
+```
+
+Dated builds live under `bazzite/live/<YYYY-MM-DD>/`, including extracted
+netboot assets:
+
+```text
+bazzite/live/<date>/netboot/<flavor>/vmlinuz
+bazzite/live/<date>/netboot/<flavor>/initrd.img
+bazzite/live/<date>/netboot/<flavor>/squashfs.img
+```
+
+The live initramfs is built with the `livenet` dracut module, so the kernel,
+initrd, and squashfs can boot over `root=live:nfs://` or `root=live:http://`.
+
+Publishing uses the repository variable `B2_BUCKET_NAME` (default
+`benleppke-bazzite-isos`) and the secrets `B2_APPLICATION_KEY_ID` and
+`B2_APPLICATION_KEY`.
 
 ### Legacy Anaconda ISO
 

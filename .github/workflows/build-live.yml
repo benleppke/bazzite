@@ -14,15 +14,16 @@ on:
           - bazzite-gnome
           - bazzite-gnome-nvidia
           - bazzite-deck-gnome
-      upload-to-s3:
-        description: "Upload to S3"
-        required: false
-        default: false
-        type: boolean
+  schedule:
+    # Weekly on Sunday at 02:00 UTC, ahead of the daily image build at 08:10.
+    - cron: '0 2 * * 0'
 
 env:
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"
   DEFAULT_TAG: "latest"
+  ISO_BUCKET: ${{ vars.B2_BUCKET_NAME || 'benleppke-bazzite-isos' }}
+  ISO_BASE_URL: "https://isos.benleppke.com/bazzite"
+  LIVE_FLAVORS: "bazzite-gnome bazzite-gnome-nvidia bazzite-deck-gnome"
 
 permissions:
   contents: read
@@ -77,6 +78,10 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix: ${{ fromJson(needs.matrix.outputs.matrix) }}
+    env:
+      RCLONE_CONFIG_B2_TYPE: b2
+      RCLONE_CONFIG_B2_ACCOUNT: ${{ secrets.B2_APPLICATION_KEY_ID }}
+      RCLONE_CONFIG_B2_KEY: ${{ secrets.B2_APPLICATION_KEY }}
 
     steps:
       - name: Prepare environment
@@ -85,25 +90,34 @@ jobs:
           TARGET_IMAGE: ${{ matrix.flavor }}
         run: |
           set -euo pipefail
-          echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}" >> "${GITHUB_ENV}"
-          echo "PAYLOAD_BASE=${PAYLOAD_BASE,,}" >> "${GITHUB_ENV}"
-          echo "TARGET_IMAGE=${TARGET_IMAGE,,}" >> "${GITHUB_ENV}"
+          {
+            echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}"
+            echo "PAYLOAD_BASE=${PAYLOAD_BASE,,}"
+            echo "TARGET_IMAGE=${TARGET_IMAGE,,}"
+            echo "ISO_NAME=${TARGET_IMAGE,,}-live-amd64.iso"
+            echo "BUILD_DATE=$(date -u +%F)"
+          } >> "${GITHUB_ENV}"
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Clean previous output
-        run: rm -rf "${GITHUB_WORKSPACE}/output"
+        run: sudo rm -rf "${GITHUB_WORKSPACE}/output"
 
-      - name: Check container storage space
+      - name: Check disk space
         run: |
           set -euo pipefail
           graphroot="$(sudo podman info --format '{{.Store.GraphRoot}}')"
-          available="$(df --output=avail -BG "${graphroot}" | tail -n 1 | tr -dc '0-9')"
-          echo "Container storage: ${graphroot}"
-          echo "Available space: ${available}G"
-          if [[ -z "${available}" || "${available}" -lt 80 ]]; then
-            echo "::error::Live ISO builds need at least 80G free in ${graphroot} (found ${available}G)."
+          container_avail="$(df --output=avail -BG "${graphroot}" | tail -n 1 | tr -dc '0-9')"
+          workspace_avail="$(df --output=avail -BG "${GITHUB_WORKSPACE}" | tail -n 1 | tr -dc '0-9')"
+          echo "Container storage: ${graphroot} (${container_avail}G free)"
+          echo "Workspace: ${GITHUB_WORKSPACE} (${workspace_avail}G free)"
+          if [[ -z "${container_avail}" || "${container_avail}" -lt 80 ]]; then
+            echo "::error::Live ISO builds need at least 80G free in ${graphroot} (found ${container_avail}G)."
+            exit 1
+          fi
+          if [[ -z "${workspace_avail}" || "${workspace_avail}" -lt 25 ]]; then
+            echo "::error::Live ISO builds need at least 25G free in ${GITHUB_WORKSPACE} (found ${workspace_avail}G)."
             exit 1
           fi
 
@@ -118,6 +132,24 @@ jobs:
         run: |
           set -euo pipefail
           sudo podman pull "${IMAGE_REGISTRY}/${PAYLOAD_BASE}:${DEFAULT_TAG}"
+
+      # Record which target image the ISO embeds. Best effort: the build itself
+      # still uses the mutable tag, so a registry hiccup must not block it.
+      - name: Resolve target image digest
+        id: digest
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          digest="unknown"
+          digest="$(sudo podman run --rm quay.io/skopeo/stable:latest \
+            inspect --creds "${GHCR_USER}:${GHCR_TOKEN}" \
+            --format '{{.Digest}}' \
+            "docker://${IMAGE_REGISTRY}/${TARGET_IMAGE}:${DEFAULT_TAG}" 2>/dev/null)" || digest="unknown"
+          [[ -n "${digest}" ]] || digest="unknown"
+          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
+          echo "Target image digest: ${digest}"
 
       - name: Build installer payload
         run: |
@@ -136,14 +168,13 @@ jobs:
         uses: ublue-os/titanoboa@5c457c3d0518bd17e754be0fd98a60d29d26abb4
         with:
           image-ref: localhost/payload-${{ matrix.flavor }}:${{ env.DEFAULT_TAG }}
-          iso-dest: ${{ github.workspace }}/output/${{ matrix.flavor }}-live-${{ env.DEFAULT_TAG }}-amd64.iso
+          iso-dest: ${{ github.workspace }}/output/${{ matrix.flavor }}-live-amd64.iso
 
       - name: Generate checksum
         run: |
           set -euo pipefail
-          iso="${TARGET_IMAGE}-live-${DEFAULT_TAG}-amd64.iso"
           cd output
-          sha256sum "${iso}" | tee "${iso}-CHECKSUM"
+          sha256sum "${ISO_NAME}" | tee "${ISO_NAME}.sha256"
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
@@ -153,7 +184,7 @@ jobs:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
         run: |
           set -euo pipefail
-          iso="output/${TARGET_IMAGE}-live-${DEFAULT_TAG}-amd64.iso"
+          iso="output/${ISO_NAME}"
           cosign sign-blob -y --key env://COSIGN_PRIVATE_KEY "${iso}" \
             --output-signature "${iso}.sig"
 
@@ -162,47 +193,211 @@ jobs:
         with:
           subject-path: output/*.iso
 
-      - name: Upload ISO and checksum to job artifacts
-        if: inputs.upload-to-s3 != true
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: ${{ matrix.flavor }}-live-iso
-          path: output/
-          if-no-files-found: error
-          retention-days: 7
-          compression-level: 0
-          overwrite: true
-
-      - name: Upload to S3
-        if: inputs.upload-to-s3 == true
-        shell: bash
-        env:
-          RCLONE_CONFIG_S3_TYPE: s3
-          RCLONE_CONFIG_S3_PROVIDER: ${{ secrets.S3_PROVIDER }}
-          RCLONE_CONFIG_S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
-          RCLONE_CONFIG_S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
-          RCLONE_CONFIG_S3_REGION: ${{ secrets.S3_REGION }}
-          RCLONE_CONFIG_S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
-          SOURCE_DIR: ${{ github.workspace }}/output
+      # The live initramfs is built with the livenet dracut module, so the
+      # kernel, initrd, and squashfs are directly bootable over the network.
+      - name: Extract netboot assets
         run: |
           set -euo pipefail
+          iso="output/${ISO_NAME}"
+          netboot="output/netboot/${TARGET_IMAGE}"
+          mkdir -p "${netboot}"
+          mnt="$(mktemp -d)"
+          trap 'sudo umount "${mnt}" 2>/dev/null || true; rmdir "${mnt}" 2>/dev/null || true' EXIT
+          sudo mount -o loop,ro "${iso}" "${mnt}"
+          sudo cp "${mnt}/images/pxeboot/vmlinuz" "${netboot}/vmlinuz"
+          sudo cp "${mnt}/images/pxeboot/initrd.img" "${netboot}/initrd.img"
+          sudo cp "${mnt}/LiveOS/squashfs.img" "${netboot}/squashfs.img"
+          sudo umount "${mnt}"
+          rmdir "${mnt}"
+          sudo chown -R "$(id -u):$(id -g)" output
+          echo "Extracted netboot assets for ${TARGET_IMAGE}"
+
+      - name: Verify initrd supports network live root
+        run: |
+          set -euo pipefail
+          if ! sudo podman run --rm \
+              --security-opt label=disable \
+              --entrypoint /usr/bin/lsinitrd \
+              -v "${GITHUB_WORKSPACE}/output/netboot/${TARGET_IMAGE}/initrd.img:/tmp/initrd.img:ro" \
+              "localhost/payload-${TARGET_IMAGE}:${DEFAULT_TAG}" \
+              /tmp/initrd.img | grep -q 'parse-livenet'; then
+            echo "::error::initrd is missing the livenet module; netboot will not work."
+            exit 1
+          fi
+
+      - name: Generate manifest
+        run: |
+          set -euo pipefail
+          netboot="output/netboot/${TARGET_IMAGE}"
+          jq -n \
+            --arg flavor "${TARGET_IMAGE}" \
+            --arg date "${BUILD_DATE}" \
+            --arg base_url "${ISO_BASE_URL}" \
+            --arg ref "${IMAGE_REGISTRY}/${TARGET_IMAGE}:${DEFAULT_TAG}" \
+            --arg digest "${{ steps.digest.outputs.digest }}" \
+            --arg git_sha "${GITHUB_SHA}" \
+            --arg iso_sha "$(cut -d' ' -f1 "output/${ISO_NAME}.sha256")" \
+            --arg iso_size "$(stat -c %s "output/${ISO_NAME}")" \
+            --arg vmlinuz_sha "$(sha256sum "${netboot}/vmlinuz" | cut -d' ' -f1)" \
+            --arg vmlinuz_size "$(stat -c %s "${netboot}/vmlinuz")" \
+            --arg initrd_sha "$(sha256sum "${netboot}/initrd.img" | cut -d' ' -f1)" \
+            --arg initrd_size "$(stat -c %s "${netboot}/initrd.img")" \
+            --arg squashfs_sha "$(sha256sum "${netboot}/squashfs.img" | cut -d' ' -f1)" \
+            --arg squashfs_size "$(stat -c %s "${netboot}/squashfs.img")" \
+            '{
+              flavor: $flavor,
+              date: $date,
+              image: { ref: $ref, digest: $digest, git_sha: $git_sha },
+              iso: {
+                name: ($flavor + "-live-amd64.iso"),
+                sha256: $iso_sha,
+                size: ($iso_size | tonumber)
+              },
+              netboot: {
+                vmlinuz: { sha256: $vmlinuz_sha, size: ($vmlinuz_size | tonumber) },
+                initrd: { sha256: $initrd_sha, size: ($initrd_size | tonumber) },
+                squashfs: { sha256: $squashfs_sha, size: ($squashfs_size | tonumber) },
+                kernel_args: "rd.live.image enforcing=0 quiet"
+              },
+              urls: {
+                iso: ($base_url + "/live/" + $date + "/" + $flavor + "-live-amd64.iso"),
+                checksum: ($base_url + "/live/" + $date + "/" + $flavor + "-live-amd64.iso.sha256"),
+                signature: ($base_url + "/live/" + $date + "/" + $flavor + "-live-amd64.iso.sig"),
+                netboot: {
+                  kernel: ($base_url + "/live/" + $date + "/netboot/" + $flavor + "/vmlinuz"),
+                  initrd: ($base_url + "/live/" + $date + "/netboot/" + $flavor + "/initrd.img"),
+                  squashfs: ($base_url + "/live/" + $date + "/netboot/" + $flavor + "/squashfs.img")
+                }
+              }
+            }' > "${netboot}/manifest.json"
+
+      - name: Install rclone
+        run: |
+          set -euo pipefail
+          if command -v rclone >/dev/null 2>&1; then
+            exit 0
+          fi
           if command -v apt-get >/dev/null 2>&1; then
             sudo apt-get update
             sudo apt-get install -y rclone
           elif command -v dnf >/dev/null 2>&1; then
             sudo dnf install -y rclone
           else
-            echo "::error::Install rclone on the runner before enabling S3 uploads."
+            echo "::error::rclone is required but no supported package manager was found."
             exit 1
           fi
-          rclone copy "${SOURCE_DIR}" S3:${{ secrets.S3_BUCKET_NAME }}
+
+      - name: Upload ISO to B2
+        run: |
+          set -euo pipefail
+          dest="b2:${ISO_BUCKET}/bazzite/live/${BUILD_DATE}"
+          rclone copy "output/${ISO_NAME}" "${dest}/" \
+            --checksum --retries 3 --low-level-retries 10
+          rclone copy "output/${ISO_NAME}.sha256" "${dest}/" --checksum
+          rclone copy "output/${ISO_NAME}.sig" "${dest}/" --checksum
+
+      - name: Upload netboot assets to B2
+        run: |
+          set -euo pipefail
+          dest="b2:${ISO_BUCKET}/bazzite/live/${BUILD_DATE}/netboot/${TARGET_IMAGE}"
+          rclone copy "output/netboot/${TARGET_IMAGE}" "${dest}/" \
+            --checksum --retries 3 --low-level-retries 10
+
+      - name: Verify uploaded objects
+        run: |
+          set -euo pipefail
+          base="b2:${ISO_BUCKET}/bazzite/live/${BUILD_DATE}"
+          rclone check "output/netboot/${TARGET_IMAGE}" "${base}/netboot/${TARGET_IMAGE}" --one-way
+          rclone check output "${base}" --one-way \
+            --include "${ISO_NAME}" \
+            --include "${ISO_NAME}.sha256" \
+            --include "${ISO_NAME}.sig"
+
+      # Only promote after the dated objects are verified. A failed build
+      # leaves the previous week's stable link untouched.
+      - name: Publish stable aliases
+        run: |
+          set -euo pipefail
+          for suffix in "" ".sha256" ".sig"; do
+            rclone copyto \
+              "b2:${ISO_BUCKET}/bazzite/live/${BUILD_DATE}/${ISO_NAME}${suffix}" \
+              "b2:${ISO_BUCKET}/bazzite/latest/${ISO_NAME}${suffix}"
+          done
 
       - name: Clean up payload image
         if: always()
         run: |
-          set -euo pipefail
           sudo podman rmi -f "localhost/payload-${TARGET_IMAGE}:${DEFAULT_TAG}" || true
 
       - name: Clean up workspace output
         if: always()
-        run: rm -rf "${GITHUB_WORKSPACE}/output"
+        run: sudo rm -rf "${GITHUB_WORKSPACE}/output"
+
+  publish:
+    name: Publish ISO index
+    needs: build
+    if: always() && needs.build.result != 'cancelled'
+    runs-on: self-hosted
+    permissions:
+      contents: read
+    env:
+      RCLONE_CONFIG_B2_TYPE: b2
+      RCLONE_CONFIG_B2_ACCOUNT: ${{ secrets.B2_APPLICATION_KEY_ID }}
+      RCLONE_CONFIG_B2_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+
+    steps:
+      - name: Install rclone
+        run: |
+          set -euo pipefail
+          if command -v rclone >/dev/null 2>&1; then
+            exit 0
+          fi
+          if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y rclone
+          elif command -v dnf >/dev/null 2>&1; then
+            sudo dnf install -y rclone
+          else
+            echo "::error::rclone is required but no supported package manager was found."
+            exit 1
+          fi
+
+      - name: Build and upload index
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "${tmp}"' EXIT
+
+          rclone lsf --dirs-only "b2:${ISO_BUCKET}/bazzite/live/" \
+            | sed 's:/$::' \
+            | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' \
+            | sort > "${tmp}/dates" || true
+
+          jq -n --arg base_url "${ISO_BASE_URL}" \
+            '{generated_at: "", base_url: $base_url, flavors: {}}' > "${tmp}/index.json"
+
+          for flavor in ${LIVE_FLAVORS}; do
+            echo '{}' > "${tmp}/releases.json"
+            latest=""
+            while read -r date; do
+              manifest="b2:${ISO_BUCKET}/bazzite/live/${date}/netboot/${flavor}/manifest.json"
+              if rclone cat "${manifest}" > "${tmp}/manifest.json" 2>/dev/null; then
+                jq --arg date "${date}" --slurpfile m "${tmp}/manifest.json" \
+                  '. + {($date): $m[0]}' "${tmp}/releases.json" > "${tmp}/releases.new"
+                mv "${tmp}/releases.new" "${tmp}/releases.json"
+                if [[ -z "${latest}" ]]; then
+                  latest="${date}"
+                fi
+              fi
+            done < <(tac "${tmp}/dates")
+            jq --arg flavor "${flavor}" --arg latest "${latest}" \
+              --slurpfile r "${tmp}/releases.json" \
+              '.flavors[$flavor] = {latest: $latest, releases: $r[0]}' \
+              "${tmp}/index.json" > "${tmp}/index.new"
+            mv "${tmp}/index.new" "${tmp}/index.json"
+          done
+
+          jq '.generated_at = (now | todate)' "${tmp}/index.json" > "${tmp}/index.new"
+          mv "${tmp}/index.new" "${tmp}/index.json"
+          rclone copyto "${tmp}/index.json" "b2:${ISO_BUCKET}/bazzite/latest/index.json"
+          cat "${tmp}/index.json"
