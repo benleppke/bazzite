@@ -38,6 +38,9 @@ target container image that Anaconda installs from local storage.
   environment only so Buildah invalidates the payload RUN cache when the
   target image changes. The archive itself is not part of the RUN cache key.
 - The live-session hardware helper matches `*bazzite*` instead of `bazzite*`.
+- The Swedish live MOTD and its locale branch are removed; the live MOTD is
+  English-only. The upstream Swedish dialog strings in `on_gui_login.sh` are
+  left in place but are unused with an English locale.
 - `gnome_flatpaks/flatpaks` has the duplicate `protontricks` entry removed.
 
 ## Maintaining it
