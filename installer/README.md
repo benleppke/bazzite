@@ -37,6 +37,9 @@ target container image that Anaconda installs from local storage.
 - `Containerfile` accepts `TARGET_IMAGE_ID` and passes it to the build
   environment only so Buildah invalidates the payload RUN cache when the
   target image changes. The archive itself is not part of the RUN cache key.
+- The live initramfs is built with the `livenet` dracut module. Without it,
+  `root=live:http://` and `root=live:nfs://` cannot fetch a network live root,
+  so the ISO cannot be netbooted. The module is inert on normal USB/ISO boots.
 - The live-session hardware helper matches `*bazzite*` instead of `bazzite*`.
 - The Swedish live MOTD and its locale branch are removed; the live MOTD is
   English-only. The upstream Swedish dialog strings in `on_gui_login.sh` are

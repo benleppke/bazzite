@@ -166,15 +166,15 @@ sudoif command *args:
 build flavor:
     #!/usr/bin/env bash
     set -euo pipefail
-    
+
     export IMAGE_NAME="{{ flavor }}"
     export FLAVOR_DIR="images/${IMAGE_NAME}"
-    
+
     if [[ ! -d "${FLAVOR_DIR}" ]]; then
       echo "Error: The directory ${FLAVOR_DIR} does not exist."
       exit 1
     fi
-    
+
     podman build \
       -f "$FLAVOR_DIR/Containerfile" \
       --build-arg IMAGE_NAME="$IMAGE_NAME" \
@@ -445,6 +445,46 @@ build-installer-payload $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $t
 [group('Build Live ISO')]
 package-live-iso $flavor $tag=default_tag: && (_package-live-iso flavor tag)
 
+# Extract the netboot kernel, initrd, and squashfs from a built live ISO
+[group('Build Live ISO')]
+build-netboot-assets $flavor:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    iso="{{ BUILD_OUTPUT_DIR }}/{{ flavor }}-live.iso"
+    out="{{ BUILD_OUTPUT_DIR }}/netboot/{{ flavor }}"
+
+    if [[ ! -f "${iso}" ]]; then
+        echo "Error: ${iso} not found. Run 'just build-live-iso {{ flavor }}' first." >&2
+        exit 1
+    fi
+
+    mkdir -p "${out}"
+    mnt="$(mktemp -d -p "{{ BUILD_TMP_DIR }}")"
+    trap 'sudo umount "${mnt}" 2>/dev/null || true; rmdir "${mnt}" 2>/dev/null || true' EXIT
+
+    sudo mount -o loop,ro "${iso}" "${mnt}"
+    sudo cp "${mnt}/images/pxeboot/vmlinuz" "${out}/vmlinuz"
+    sudo cp "${mnt}/images/pxeboot/initrd.img" "${out}/initrd.img"
+    sudo cp "${mnt}/LiveOS/squashfs.img" "${out}/squashfs.img"
+    sudo umount "${mnt}"
+    sudo chown "$USER:$USER" "${out}"/*
+
+    payload="localhost/payload-{{ flavor }}:{{ default_tag }}"
+    if ./scripts/podman-rootful.sh image exists "${payload}"; then
+        if ! ./scripts/podman-rootful.sh run --rm \
+            --security-opt label=disable \
+            --entrypoint /usr/bin/lsinitrd \
+            -v "${out}/initrd.img:/tmp/initrd.img:ro" \
+            "${payload}" /tmp/initrd.img | grep -q 'parse-livenet'; then
+            echo "Error: initrd is missing the livenet module." >&2
+            exit 1
+        fi
+    fi
+
+    sha256sum "${out}/vmlinuz" "${out}/initrd.img" "${out}/squashfs.img"
+    echo "Netboot assets: ${out}"
+
 # Rebuild a live ISO with Titanoboa
 [group('Build Live ISO')]
 rebuild-live-iso flavor:
@@ -552,7 +592,6 @@ spawn-vm rebuild="0" type="qcow2" ram="6G":
       --network-user-mode \
       --vsock=false --pass-ssh-key=false \
       -i "{{ BUILD_OUTPUT_DIR }}"/*.{{ type }}
-
 
 # Runs shell check on all Bash scripts
 lint:

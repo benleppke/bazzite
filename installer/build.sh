@@ -65,7 +65,7 @@ fi
 dnf install -y dracut-live
 kernel=$(kernel-install list --json pretty | jq -r '.[] | select(.has_kernel == true) | .version')
 DRACUT_NO_XATTR=1 dracut -v --force --reproducible --no-hostonly \
-    --add "dmsquash-live dmsquash-live-autooverlay" \
+    --add "dmsquash-live dmsquash-live-autooverlay livenet" \
     "/usr/lib/modules/${kernel}/initramfs.img" "${kernel}"
 
 # Install livesys-scripts and configure them
