@@ -163,12 +163,29 @@ jobs:
             -t "localhost/payload-${TARGET_IMAGE}:${DEFAULT_TAG}" \
             installer/
 
+      # Use the vendored builder instead of the Titanoboa action: the action's
+      # iso-dest handling calls realpath on a file that does not exist yet and
+      # fails after the ISO is built.
       - name: Build live ISO
         id: build
-        uses: ublue-os/titanoboa@5c457c3d0518bd17e754be0fd98a60d29d26abb4
-        with:
-          image-ref: localhost/payload-${{ matrix.flavor }}:${{ env.DEFAULT_TAG }}
-          iso-dest: ${{ github.workspace }}/output/${{ matrix.flavor }}-live-amd64.iso
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          sudo podman run --rm \
+            --cap-add sys_admin \
+            --security-opt label=disable \
+            -v "${GITHUB_WORKSPACE}/output:/output" \
+            -v "${GITHUB_WORKSPACE}/scripts/titanoboa/build_iso.sh:/src/build_iso.sh:ro" \
+            --mount type=image,source="localhost/payload-${TARGET_IMAGE}:${DEFAULT_TAG}",dst=/rootfs \
+            quay.io/fedora/fedora:latest \
+            /src/build_iso.sh
+          iso_file="$(find output -maxdepth 1 -name '*.iso' -print -quit)"
+          if [[ -z "${iso_file}" ]]; then
+            echo "::error::Titanoboa did not produce an ISO."
+            exit 1
+          fi
+          sudo mv -f "${iso_file}" "output/${ISO_NAME}"
+          sudo chown "$(id -u):$(id -g)" "output/${ISO_NAME}"
 
       - name: Generate checksum
         run: |
@@ -274,18 +291,11 @@ jobs:
       - name: Install rclone
         run: |
           set -euo pipefail
-          if command -v rclone >/dev/null 2>&1; then
-            exit 0
-          fi
-          if command -v apt-get >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y rclone
-          elif command -v dnf >/dev/null 2>&1; then
-            sudo dnf install -y rclone
-          else
-            echo "::error::rclone is required but no supported package manager was found."
-            exit 1
-          fi
+          version="$(curl -fsSL https://downloads.rclone.org/version.txt | awk '{print $2}')"
+          curl -fsSL -o "${RUNNER_TEMP}/rclone.deb" \
+            "https://downloads.rclone.org/${version}/rclone-${version}-linux-amd64.deb"
+          sudo dpkg -i --force-overwrite "${RUNNER_TEMP}/rclone.deb"
+          rclone version | head -1
 
       - name: Upload ISO to B2
         run: |
@@ -349,18 +359,11 @@ jobs:
       - name: Install rclone
         run: |
           set -euo pipefail
-          if command -v rclone >/dev/null 2>&1; then
-            exit 0
-          fi
-          if command -v apt-get >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y rclone
-          elif command -v dnf >/dev/null 2>&1; then
-            sudo dnf install -y rclone
-          else
-            echo "::error::rclone is required but no supported package manager was found."
-            exit 1
-          fi
+          version="$(curl -fsSL https://downloads.rclone.org/version.txt | awk '{print $2}')"
+          curl -fsSL -o "${RUNNER_TEMP}/rclone.deb" \
+            "https://downloads.rclone.org/${version}/rclone-${version}-linux-amd64.deb"
+          sudo dpkg -i --force-overwrite "${RUNNER_TEMP}/rclone.deb"
+          rclone version | head -1
 
       - name: Build and upload index
         run: |
