@@ -31,6 +31,9 @@ target container image that Anaconda installs from local storage.
   with this repository's cosign key, which is not part of the upstream ublue
   signature policy. Add the key to the image policy before re-enabling
   enforcement.
+- `build.sh` loads `/target-image.oci` when present. Local builds mount an OCI
+  archive of the target image so from-source builds use the image in the build
+  storage instead of pulling the published tag.
 - The live-session hardware helper matches `*bazzite*` instead of `bazzite*`.
 - `gnome_flatpaks/flatpaks` has the duplicate `protontricks` entry removed.
 

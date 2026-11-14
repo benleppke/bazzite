@@ -103,6 +103,54 @@ The installer files under `installer/` are vendored from `ublue-os/bazzite`; see
 
 `build-disk.yml` still builds the previous install-only Anaconda ISO with bootc-image-builder. It does **not** include a live desktop. Keep using that workflow if you want the previous behavior.
 
+### Building locally on an external disk
+
+Live ISO builds can use 90–120G across container storage, temporary files, and output. The Justfile supports a configurable `BUILD_ROOT` so this stays off the primary disk.
+
+1. Copy `.env.example` to `.env` and set `BUILD_ROOT`, for example:
+
+   ```bash
+   BUILD_ROOT=/run/media/ben/ssd3/Build
+   ```
+
+2. Run the one-time storage setup:
+
+   ```bash
+   just setup-build-dir
+   ```
+
+   This creates the rootful Podman storage config, graphroot, temp directory, and output directory under `BUILD_ROOT`. It also labels the storage for SELinux and disables copy-on-write on btrfs.
+
+3. Build and run:
+
+   ```bash
+   just build-live-iso bazzite-gnome
+   just run-vm-live-iso bazzite-gnome
+   ```
+
+`build-live-iso` pulls the published images from GHCR. To build the container image locally into the same SSD storage instead:
+
+```bash
+just build-rootful bazzite-gnome
+just build-live-iso-from-source bazzite-gnome
+```
+
+`just build` still uses rootless Podman and the primary disk. Use `build-rootful` for SSD-only local builds.
+
+Clean up build outputs without removing the image cache:
+
+```bash
+just clean-build
+```
+
+Remove cached images from the `BUILD_ROOT` storage:
+
+```bash
+just clean-build-storage
+```
+
+If `BUILD_ROOT` is not set, it defaults to `build/` in the repository.
+
 #### Container Signing
 
 Container signing is important for end-user security and is enabled on all Universal Blue images. It is recommended you set this up, and by default the image builds *will fail* if you don't.
@@ -163,6 +211,7 @@ This `Justfile` contains various commands and configurations for building and ma
 - `default_tag`: The default tag for the image (default: "latest").
 - `bib_image`: The Bootc Image Builder (BIB) image (default: "quay.io/centos-bootc/bootc-image-builder:latest").
 - `titanoboa_image`: The Titanoboa container image used for live ISOs (default: "ghcr.io/ublue-os/titanoboa:latest").
+- `BUILD_ROOT`: Rootful Podman storage, temp, and output directory (default: `build/` in the repo; loaded from `.env`).
 
 #### Aliases
 
@@ -185,6 +234,30 @@ Fixes the syntax of all `.just` files and the `Justfile`.
 
 Cleans the repository by removing build artifacts.
 
+###### `setup-build-dir`
+
+Creates the `BUILD_ROOT` rootful Podman storage config, SELinux labels, temp directory, and output directory.
+
+```bash
+just setup-build-dir
+```
+
+###### `clean-build`
+
+Removes build outputs and temporary files under `BUILD_ROOT` while keeping the image cache.
+
+```bash
+just clean-build
+```
+
+###### `clean-build-storage`
+
+Removes all cached images and containers from the `BUILD_ROOT` Podman storage.
+
+```bash
+just clean-build-storage
+```
+
 ##### Build Commands
 
 ###### `build`
@@ -198,6 +271,14 @@ just build $target_image $tag
 Arguments:
 - `$target_image`: The tag you want to apply to the image (default: `$image_name`).
 - `$tag`: The tag for the image (default: `$default_tag`).
+
+###### `build-rootful`
+
+Builds a container image into the `BUILD_ROOT` rootful Podman storage.
+
+```bash
+just build-rootful $flavor
+```
 
 ##### Building Virtual Machines and ISOs
 
@@ -227,10 +308,18 @@ just build-iso $target_image $tag
 
 ###### `build-live-iso`
 
-Builds a live ISO using Titanoboa. This is the live desktop installer, not the legacy bootc-image-builder Anaconda ISO.
+Builds a live ISO using Titanoboa from the published images. This is the live desktop installer, not the legacy bootc-image-builder Anaconda ISO.
 
 ```bash
 just build-live-iso $flavor
+```
+
+###### `build-live-iso-from-source`
+
+Builds the container image into `BUILD_ROOT` with `build-rootful`, then builds the live ISO.
+
+```bash
+just build-live-iso-from-source $flavor
 ```
 
 ###### `build-installer-payload`

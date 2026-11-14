@@ -22,7 +22,11 @@ curl --retry 3 -Lo /etc/flatpak/remotes.d/flathub.flatpakrepo https://dl.flathub
 xargs -r flatpak install -y --noninteractive <"/src/$FLATPAK_DIR_SHORTNAME/flatpaks"
 
 # Pull the container image to be installed
-if mountpoint -q /usr/lib/containers/storage; then
+if [[ -f /target-image.oci ]]; then
+    # Local Justfile builds mount an OCI archive of the target image so that
+    # from-source builds use the image in the build storage, not the registry.
+    podman load -i /target-image.oci
+elif mountpoint -q /usr/lib/containers/storage; then
     # We load our image from the host container storage if possible
     podman save --format oci-archive "$INSTALL_IMAGE_PAYLOAD" | podman load --storage-opt additionalimagestore=''
 else
