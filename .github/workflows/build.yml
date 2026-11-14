@@ -32,6 +32,7 @@ jobs:
     runs-on: self-hosted
 
     strategy:
+      fail-fast: false
       matrix:
         flavor: [bazzite-gnome, bazzite-gnome-nvidia, bazzite-deck-gnome]
 
@@ -54,6 +55,13 @@ jobs:
       # These stage versions are pinned by https://github.com/renovatebot/renovate
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # Canceled jobs can leave a GHCR token behind on the persistent runner.
+      # That token is scoped to this repository and cannot read public
+      # upstream images, so clear it before pulling them anonymously.
+      - name: Clear stale registry credentials
+        run: |
+          rm -f "${HOME}/.docker/config.json" "${HOME}/.config/containers/auth.json"
 
       # Bust the buildah RUN-layer cache when the build scripts change. Buildah
       # does not include the contents of stages referenced by
@@ -91,7 +99,10 @@ jobs:
           UPSTREAM_IMAGE=$(grep '^FROM' ${{ env.FLAVOR_DIR }}/Containerfile | tail -n 1 | awk '{print $2}')
           echo "Upstream Image: $UPSTREAM_IMAGE"
 
-          podman pull "$UPSTREAM_IMAGE"
+          authfile="$(mktemp)"
+          trap 'rm -f "$authfile"' EXIT
+          printf '{}\n' > "$authfile"
+          podman pull --authfile "$authfile" "$UPSTREAM_IMAGE"
 
           UPSTREAM_SHA=$(podman inspect --format '{{.Digest}}' "$UPSTREAM_IMAGE")
           echo "Upstream SHA: $UPSTREAM_SHA"
