@@ -153,6 +153,20 @@ jobs:
           sep-tags: " "
           sep-annotations: " "
 
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Buildah reads the containers auth file, not Docker's. Copy the login
+      # credentials so the registry-backed layer cache can push and pull.
+      - name: Configure buildah authentication
+        run: |
+          mkdir -p "${HOME}/.config/containers"
+          cp "${HOME}/.docker/config.json" "${HOME}/.config/containers/auth.json"
+
       - name: Build Image
         id: build_image
         uses: redhat-actions/buildah-build@719e3c40d8af9790c23eca13f7daa339f2867034 # v3.1.0
@@ -166,6 +180,13 @@ jobs:
           oci: false
           layers: true
           squash: false
+          # Shared layer cache in GHCR. Without this, each runner keeps an
+          # isolated local cache and a job that lands on the wrong runner
+          # rebuilds layers from scratch.
+          extra-args: |
+            --cache-from=${{ env.IMAGE_REGISTRY }}/bazzite-build-cache-${{ matrix.flavor }}
+            --cache-to=${{ env.IMAGE_REGISTRY }}/bazzite-build-cache-${{ matrix.flavor }}
+            --cache-ttl=168h
 
       # Rechunk is a script that we use on Universal Blue to make sure there isnt a single huge layer when your image gets published.
       # This does not make your image faster to download, just provides better resumability and fixes a few errors.
@@ -193,13 +214,6 @@ jobs:
 
       # These `if` statements are so that pull requests for your custom images do not make it publish any packages under your name without you knowing
       # They also check if the runner is on the default branch so that things like the merge queue (if you enable it), are going to work
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Push To GHCR
         uses: redhat-actions/push-to-registry@94ade333c38ecc0e60e94785125d9a52ca423b37 # v3.0.0
         id: push
