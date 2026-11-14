@@ -74,6 +74,35 @@ This workflow creates a disk images from your OCI image by utilizing the [bootc-
 
 Once the workflow is done, you'll find the disk images either in your S3 bucket or as part of the summary under `Artifacts` after the workflow is completed.
 
+### build-live.yml
+
+This workflow builds a bootable **live ISO** using [Titanoboa](https://github.com/ublue-os/titanoboa). Unlike `build-disk.yml`, the result boots into a live GNOME desktop with the Anaconda live installer.
+
+The live ISO is not built directly from the desktop image. The workflow first builds an installer payload from the vendored [`installer/`](installer/) directory using the non-Deck/non-NVIDIA desktop image as the live base, embeds the selected flavor image for offline installation, and then asks Titanoboa to package it.
+
+- `workflow_dispatch` input `flavor`: `all`, `bazzite-gnome`, `bazzite-gnome-nvidia`, or `bazzite-deck-gnome`.
+- Output: `bazzite-<flavor>-live-latest-amd64.iso`, checksum, cosign signature, and build provenance attestation.
+- Runner requirements: self-hosted runner with rootful Podman, passwordless `sudo`, and at least 80G free in container storage.
+
+Build it locally with:
+
+```bash
+just build-live-iso bazzite-gnome
+just run-vm-live-iso bazzite-gnome
+```
+
+To build only the installer payload:
+
+```bash
+just build-installer-payload bazzite-gnome-nvidia
+```
+
+The installer files under `installer/` are vendored from `ublue-os/bazzite`; see [`installer/README.md`](installer/README.md) for the pinned upstream commit and local changes.
+
+#### Legacy Anaconda install ISO
+
+`build-disk.yml` still builds the previous install-only Anaconda ISO with bootc-image-builder. It does **not** include a live desktop. Keep using that workflow if you want the previous behavior.
+
 #### Container Signing
 
 Container signing is important for end-user security and is enabled on all Universal Blue images. It is recommended you set this up, and by default the image builds *will fail* if you don't.
@@ -133,6 +162,7 @@ This `Justfile` contains various commands and configurations for building and ma
 - `image_name`: The name of the image (default: "image-template").
 - `default_tag`: The default tag for the image (default: "latest").
 - `bib_image`: The Bootc Image Builder (BIB) image (default: "quay.io/centos-bootc/bootc-image-builder:latest").
+- `titanoboa_image`: The Titanoboa container image used for live ISOs (default: "ghcr.io/ublue-os/titanoboa:latest").
 
 #### Aliases
 
@@ -195,6 +225,22 @@ Builds an ISO virtual machine image.
 just build-iso $target_image $tag
 ```
 
+###### `build-live-iso`
+
+Builds a live ISO using Titanoboa. This is the live desktop installer, not the legacy bootc-image-builder Anaconda ISO.
+
+```bash
+just build-live-iso $flavor
+```
+
+###### `build-installer-payload`
+
+Builds only the Titanoboa installer payload image.
+
+```bash
+just build-installer-payload $flavor
+```
+
 ###### `rebuild-qcow2`
 
 Rebuilds a QCOW2 virtual machine image.
@@ -217,6 +263,14 @@ Rebuilds an ISO virtual machine image.
 
 ```bash
 just rebuild-iso $target_image $tag
+```
+
+###### `rebuild-live-iso`
+
+Rebuilds a live ISO using Titanoboa.
+
+```bash
+just rebuild-live-iso $flavor
 ```
 
 ##### Run Virtual Machines
@@ -243,6 +297,14 @@ Runs a virtual machine from an ISO.
 
 ```bash
 just run-vm-iso $target_image $tag
+```
+
+###### `run-vm-live-iso`
+
+Runs a virtual machine from a Titanoboa live ISO.
+
+```bash
+just run-vm-live-iso $flavor
 ```
 
 ###### `spawn-vm`

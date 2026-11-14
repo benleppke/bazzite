@@ -1,5 +1,5 @@
 ---
-name: Build disk images
+name: Build legacy Anaconda install ISOs
 
 on:
   workflow_dispatch:

@@ -1,6 +1,7 @@
 export image_name := env("IMAGE_NAME", "bazzite")
 export default_tag := env("DEFAULT_TAG", "latest")
 export bib_image := env("BIB_IMAGE", "quay.io/centos-bootc/bootc-image-builder:latest")
+export titanoboa_image := env("TITANOBOA_IMAGE", "ghcr.io/ublue-os/titanoboa:latest")
 export IMAGE_REGISTRY := env("IMAGE_REGISTRY", "ghcr.io/benleppke")
 
 alias build-vm := build-qcow2
@@ -232,6 +233,69 @@ _build-bib $flavor $target_image $tag $type $config: (build flavor)
     # Clean up the temp directory
     sudo rm -rf $BUILDTMP
 
+# Build the installer payload used by Titanoboa.
+# Parameters:
+#   flavor: The flavor being installed (ex. bazzite-gnome-nvidia)
+#   target_image: The container image to embed for installation
+#   tag: The tag of the image to embed
+#
+# Example: just _build-installer-payload bazzite-gnome-nvidia ghcr.io/benleppke/bazzite-gnome-nvidia latest
+_build-installer-payload $flavor $target_image $tag:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    payload_base="{{ flavor }}"
+    case "${payload_base}" in
+        *-deck-* | *-nvidia*) payload_base="bazzite-gnome" ;;
+    esac
+
+    just _rootful_load_image "${IMAGE_REGISTRY}/${payload_base}" "{{ tag }}"
+    just _rootful_load_image "{{ target_image }}" "{{ tag }}"
+
+    sudo podman build \
+      --cap-add sys_admin \
+      --security-opt label=disable \
+      --build-arg BASE_IMAGE="${IMAGE_REGISTRY}/${payload_base}:{{ tag }}" \
+      --build-arg INSTALL_IMAGE_PAYLOAD="{{ target_image }}:{{ tag }}" \
+      --build-arg FLATPAK_DIR_SHORTNAME=gnome_flatpaks \
+      -t "localhost/payload-{{ flavor }}:{{ tag }}" \
+      installer/
+
+# Build a live ISO with Titanoboa from an installer payload.
+# Parameters:
+#   flavor: The flavor being installed (ex. bazzite-gnome-nvidia)
+#   target_image: The container image to embed for installation
+#   tag: The tag of the image to embed
+#
+# Example: just _build-live-iso bazzite-gnome-nvidia ghcr.io/benleppke/bazzite-gnome-nvidia latest
+_build-live-iso $flavor $target_image $tag: (_build-installer-payload flavor target_image tag)
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    BUILDTMP=$(mktemp -p "${PWD}" -d -t _build-live.XXXXXXXXXX)
+    trap 'sudo rm -rf "${BUILDTMP}"' EXIT
+
+    sudo podman run \
+      --rm \
+      -it \
+      --cap-add sys_admin \
+      --security-opt label=disable \
+      -v "${BUILDTMP}":/output \
+      -v /var/lib/containers/storage:/usr/lib/containers/storage:ro \
+      --mount type=image,source="localhost/payload-{{ flavor }}:{{ tag }}",dst=/rootfs \
+      "{{ titanoboa_image }}"
+
+    iso_file=$(find "${BUILDTMP}" -maxdepth 1 -name '*.iso' -print -quit)
+    if [[ -z "${iso_file}" ]]; then
+        echo "Error: Titanoboa did not produce an ISO in ${BUILDTMP}" >&2
+        exit 1
+    fi
+
+    mkdir -p output
+    sudo mv -f "${iso_file}" "output/{{ flavor }}-live.iso"
+    sudo chown "$USER:$USER" "output/{{ flavor }}-live.iso"
+    (cd output && sha256sum "{{ flavor }}-live.iso" > "{{ flavor }}-live.iso-CHECKSUM")
+
 # Podman builds the image from the Containerfile and creates a bootable image
 _rebuild-bib $flavor $target_image $tag $type $config: (build flavor) && (_build-bib flavor target_image tag type config)
 
@@ -246,6 +310,19 @@ build-raw $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag
 # Build an ISO virtual machine image
 [group('Build Virtal Machine Image')]
 build-iso $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_build-bib flavor target_image tag "iso" ("images/" + flavor + "/iso.toml"))
+
+# Build a live ISO with Titanoboa
+[group('Build Live ISO')]
+build-live-iso $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: (build flavor) && (_build-live-iso flavor target_image tag)
+
+# Build the Titanoboa installer payload only
+[group('Build Live ISO')]
+build-installer-payload $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: (build flavor) && (_build-installer-payload flavor target_image tag)
+
+# Rebuild a live ISO with Titanoboa
+[group('Build Live ISO')]
+rebuild-live-iso flavor:
+    @just _build-live-iso "{{ flavor }}" "{{ IMAGE_REGISTRY }}/{{ flavor }}" "{{ default_tag }}"
 
 # Rebuild a QCOW2 virtual machine image
 [group('Build Virtal Machine Image')]
@@ -268,16 +345,25 @@ _run-vm $flavor $target_image $tag $type $config:
     set -eoux pipefail
 
     # Determine the image file based on the flavor and type
-    if [[ $type == iso ]]; then
+    if [[ $type == live-iso ]]; then
+        image_file="output/{{ flavor }}-live.iso"
+        mount_type="iso"
+    elif [[ $type == iso ]]; then
         image_file="output/{{ flavor }}.iso"
+        mount_type="iso"
     else
         image_file="output/{{ flavor }}.${type}"
+        mount_type="$type"
     fi
 
     # Build the image if it does not exist
     if [[ ! -f "${image_file}" ]]; then
-        # Use the flavor in the build command
-        just "build-${type}" "{{ flavor }}" "$target_image" "$tag"
+        if [[ $type == live-iso ]]; then
+            just build-live-iso "{{ flavor }}" "$target_image" "$tag"
+        else
+            # Use the flavor in the build command
+            just "build-${type}" "{{ flavor }}" "$target_image" "$tag"
+        fi
     fi
 
     # Determine an available port to use
@@ -299,7 +385,7 @@ _run-vm $flavor $target_image $tag $type $config:
     run_args+=(--env "TPM=Y")
     run_args+=(--env "GPU=Y")
     run_args+=(--device=/dev/kvm)
-    run_args+=(--volume "${PWD}/${image_file}":"/boot.${type}")
+    run_args+=(--volume "${PWD}/${image_file}":"/boot.${mount_type}")
     run_args+=(docker.io/qemux/qemu)
 
     # Run the VM and open the browser to connect
@@ -317,6 +403,10 @@ run-vm-raw $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_ta
 # Run a virtual machine from an ISO
 [group('Run Virtal Machine')]
 run-vm-iso $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_run-vm flavor target_image tag "iso" "disk_config/iso.toml")
+
+# Run a virtual machine from a live ISO
+[group('Run Virtal Machine')]
+run-vm-live-iso $flavor $target_image=(IMAGE_REGISTRY + "/" + flavor) $tag=default_tag: && (_run-vm flavor target_image tag "live-iso" ("images/" + flavor + "/iso.toml"))
 
 # Run a virtual machine using systemd-vmspawn
 [group('Run Virtal Machine')]
