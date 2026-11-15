@@ -209,7 +209,10 @@ jobs:
           cosign sign-blob -y --key env://COSIGN_PRIVATE_KEY "${checksum}" \
             --bundle "${checksum}.bundle"
 
+      # GitHub attestations are not available for user-owned private repos.
+      # Keep the step for a future public repo, but skip it here.
       - name: Attest build provenance
+        if: github.event.repository.visibility == 'public'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
         with:
           subject-path: output/*.iso
