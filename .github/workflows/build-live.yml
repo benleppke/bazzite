@@ -196,14 +196,16 @@ jobs:
       - name: Install Cosign
         uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
 
-      - name: Sign ISO
+      - name: Sign checksum
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
         run: |
           set -euo pipefail
-          iso="output/${ISO_NAME}"
-          cosign sign-blob -y --key env://COSIGN_PRIVATE_KEY "${iso}" \
-            --bundle "${iso}.bundle"
+          # cosign loads the whole blob into memory, so sign the small
+          # checksum instead of the 8 GB ISO. The checksum covers the ISO.
+          checksum="output/${ISO_NAME}.sha256"
+          cosign sign-blob -y --key env://COSIGN_PRIVATE_KEY "${checksum}" \
+            --bundle "${checksum}.bundle"
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
@@ -279,7 +281,7 @@ jobs:
               urls: {
                 iso: ($base_url + "/live/" + $date + "/" + $flavor + "-live-amd64.iso"),
                 checksum: ($base_url + "/live/" + $date + "/" + $flavor + "-live-amd64.iso.sha256"),
-                bundle: ($base_url + "/live/" + $date + "/" + $flavor + "-live-amd64.iso.bundle"),
+                bundle: ($base_url + "/live/" + $date + "/" + $flavor + "-live-amd64.iso.sha256.bundle"),
                 netboot: {
                   kernel: ($base_url + "/live/" + $date + "/netboot/" + $flavor + "/vmlinuz"),
                   initrd: ($base_url + "/live/" + $date + "/netboot/" + $flavor + "/initrd.img"),
@@ -304,7 +306,7 @@ jobs:
           rclone copy "output/${ISO_NAME}" "${dest}/" \
             --checksum --retries 3 --low-level-retries 10
           rclone copy "output/${ISO_NAME}.sha256" "${dest}/" --checksum
-          rclone copy "output/${ISO_NAME}.bundle" "${dest}/" --checksum
+          rclone copy "output/${ISO_NAME}.sha256.bundle" "${dest}/" --checksum
 
       - name: Upload netboot assets to B2
         run: |
@@ -321,14 +323,14 @@ jobs:
           rclone check output "${base}" --one-way \
             --include "${ISO_NAME}" \
             --include "${ISO_NAME}.sha256" \
-            --include "${ISO_NAME}.bundle"
+            --include "${ISO_NAME}.sha256.bundle"
 
       # Only promote after the dated objects are verified. A failed build
       # leaves the previous week's stable link untouched.
       - name: Publish stable aliases
         run: |
           set -euo pipefail
-          for suffix in "" ".sha256" ".bundle"; do
+          for suffix in "" ".sha256" ".sha256.bundle"; do
             rclone copyto \
               "b2:${ISO_BUCKET}/bazzite/live/${BUILD_DATE}/${ISO_NAME}${suffix}" \
               "b2:${ISO_BUCKET}/bazzite/latest/${ISO_NAME}${suffix}"

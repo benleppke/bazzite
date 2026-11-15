@@ -69,8 +69,8 @@ it with Titanoboa.
 - `workflow_dispatch` input `flavor`: `all`, `bazzite-gnome`,
   `bazzite-gnome-nvidia`, or `bazzite-deck-gnome`. The workflow also runs
   weekly on Sunday at 02:00 UTC and builds all three flavors.
-- Output per flavor: `bazzite-<flavor>-live-amd64.iso`, a `.sha256` checksum,
-  a cosign `.bundle`, extracted netboot assets, and a `manifest.json`.
+- Output per flavor: `bazzite-<flavor>-live-amd64.iso`, a `.sha256` checksum
+  signed with cosign, extracted netboot assets, and a `manifest.json`.
 - Runner requirements: self-hosted runner with rootful Podman, passwordless
   `sudo`, rclone, access to Backblaze B2, and at least 80G free in container
   storage plus 25G in the workspace.
@@ -124,7 +124,7 @@ https://isos.benleppke.com/bazzite/latest/bazzite-gnome-nvidia-live-amd64.iso
 https://isos.benleppke.com/bazzite/latest/bazzite-deck-gnome-live-amd64.iso
 ```
 
-Each ISO has a `.sha256` and `.bundle` next to it. The machine-readable index is:
+Each ISO has a `.sha256`; the checksum is cosign-signed and published as `.sha256.bundle`. The machine-readable index is:
 
 ```text
 https://isos.benleppke.com/bazzite/latest/index.json
