@@ -357,6 +357,13 @@ jobs:
               "b2:${ISO_BUCKET}/bazzite/live/${BUILD_DATE}/${ISO_NAME}${suffix}" \
               "b2:${ISO_BUCKET}/bazzite/latest/${ISO_NAME}${suffix}"
           done
+          # Stable netboot paths, so the generated iPXE menu's default entry
+          # does not depend on a dated directory surviving the lifecycle.
+          for file in vmlinuz initrd.img squashfs.img manifest.json; do
+            rclone copyto \
+              "b2:${ISO_BUCKET}/bazzite/live/${BUILD_DATE}/netboot/${TARGET_IMAGE}/${file}" \
+              "b2:${ISO_BUCKET}/bazzite/latest/netboot/${TARGET_IMAGE}/${file}"
+          done
 
       - name: Clean up payload image
         if: always()
@@ -380,6 +387,9 @@ jobs:
       RCLONE_CONFIG_B2_KEY: ${{ secrets.B2_APPLICATION_KEY }}
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
       - name: Install rclone
         run: |
           set -euo pipefail
@@ -408,7 +418,12 @@ jobs:
             latest=""
             while read -r date; do
               manifest="b2:${ISO_BUCKET}/bazzite/live/${date}/netboot/${flavor}/manifest.json"
-              if rclone cat "${manifest}" > "${tmp}/manifest.json" 2>/dev/null; then
+              # rclone cat exits 0 with empty output when the object is missing,
+              # so check the body too. Without this a flavor with no build is
+              # published as a null release with a bogus latest date.
+              if rclone cat "${manifest}" > "${tmp}/manifest.json" 2>/dev/null \
+                && [[ -s "${tmp}/manifest.json" ]] \
+                && jq -e '.netboot.vmlinuz.sha256' "${tmp}/manifest.json" >/dev/null 2>&1; then
                 jq --arg date "${date}" --slurpfile m "${tmp}/manifest.json" \
                   '. + {($date): $m[0]}' "${tmp}/releases.json" > "${tmp}/releases.new"
                 mv "${tmp}/releases.new" "${tmp}/releases.json"
@@ -428,3 +443,18 @@ jobs:
           mv "${tmp}/index.new" "${tmp}/index.json"
           rclone copyto "${tmp}/index.json" "b2:${ISO_BUCKET}/bazzite/latest/index.json"
           cat "${tmp}/index.json"
+
+      # netboot.xyz only needs to chain to this one URL; the menu is rebuilt
+      # from the index on every run, so the boot loader never needs editing
+      # when a release comes or goes.
+      - name: Generate and upload netboot menu
+        run: |
+          set -euo pipefail
+          dest="b2:${ISO_BUCKET}/bazzite/latest"
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "${tmp}"' EXIT
+
+          rclone cat "${dest}/index.json" > "${tmp}/index.json"
+          scripts/netboot_menu.sh "${tmp}/index.json" > "${tmp}/menu.ipxe"
+          rclone copyto "${tmp}/menu.ipxe" "${dest}/menu.ipxe"
+          cat "${tmp}/menu.ipxe"
