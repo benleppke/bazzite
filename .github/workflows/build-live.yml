@@ -153,15 +153,28 @@ jobs:
           echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
           echo "Target image digest: ${digest}"
 
+      - name: Compute installer hash
+        run: |
+          set -euo pipefail
+          hash="$(find installer -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -c1-16)"
+          echo "INSTALLER_HASH=${hash}" >> "${GITHUB_ENV}"
+          echo "Installer hash: ${hash}"
+
       - name: Build installer payload
         run: |
           set -euo pipefail
+          target_id="${{ steps.digest.outputs.digest }}"
+          if [[ -z "${target_id}" || "${target_id}" == "unknown" ]]; then
+            target_id="${GITHUB_SHA}"
+          fi
           sudo podman build \
             --cap-add sys_admin \
             --security-opt label=disable \
             --build-arg BASE_IMAGE="${IMAGE_REGISTRY}/${PAYLOAD_BASE}:${DEFAULT_TAG}" \
             --build-arg INSTALL_IMAGE_PAYLOAD="${IMAGE_REGISTRY}/${TARGET_IMAGE}:${DEFAULT_TAG}" \
             --build-arg FLATPAK_DIR_SHORTNAME=gnome_flatpaks \
+            --build-arg TARGET_IMAGE_ID="${target_id}" \
+            --build-arg INSTALLER_HASH="${INSTALLER_HASH}" \
             -t "localhost/payload-${TARGET_IMAGE}:${DEFAULT_TAG}" \
             installer/
 
