@@ -121,12 +121,14 @@ jobs:
             exit 1
           fi
 
+      # Log in with rootful podman directly. The Docker login action only
+      # updates ~/.docker/config.json, while `sudo podman` prefers the
+      # containers auth file and can otherwise reuse a stale token.
       - name: Log in to GHCR
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.GITHUB_TOKEN }}" | sudo podman login ghcr.io \
+            --username "${{ github.actor }}" --password-stdin
 
       - name: Pull base image
         run: |
