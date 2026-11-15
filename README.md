@@ -142,6 +142,24 @@ bazzite/live/<date>/netboot/<flavor>/squashfs.img
 The live initramfs is built with the `livenet` dracut module, so the kernel,
 initrd, and squashfs can boot over `root=live:nfs://` or `root=live:http://`.
 
+Each release is also mirrored to stable paths that never expire, so a boot
+loader config does not have to track the build date:
+
+```text
+bazzite/latest/netboot/<flavor>/{vmlinuz,initrd.img,squashfs.img,manifest.json}
+```
+
+netboot.xyz only needs to chain to one generated iPXE menu:
+
+```text
+https://isos.benleppke.com/bazzite/latest/menu.ipxe
+```
+
+The menu is rebuilt from `index.json` on every publish run: it lists the latest
+release per flavor plus the older releases still inside the lifecycle window.
+Note that `root=live:http(s)://` downloads the whole squashfs into the
+initramfs (`/tmp`, i.e. RAM), while `root=live:nfs://` mounts it in place.
+
 Publishing uses the repository variable `B2_BUCKET_NAME` (default
 `benleppke-bazzite-isos`) and the secrets `B2_APPLICATION_KEY_ID` and
 `B2_APPLICATION_KEY`.
