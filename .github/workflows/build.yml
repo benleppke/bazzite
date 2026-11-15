@@ -191,13 +191,6 @@ jobs:
           oci: false
           layers: true
           squash: false
-          # Shared layer cache in GHCR. Without this, each runner keeps an
-          # isolated local cache and a job that lands on the wrong runner
-          # rebuilds layers from scratch.
-          extra-args: |
-            --cache-from=${{ env.IMAGE_REGISTRY }}/bazzite-build-cache-${{ matrix.flavor }}
-            --cache-to=${{ env.IMAGE_REGISTRY }}/bazzite-build-cache-${{ matrix.flavor }}
-            --cache-ttl=168h
 
       # Rechunk is a script that we use on Universal Blue to make sure there isnt a single huge layer when your image gets published.
       # This does not make your image faster to download, just provides better resumability and fixes a few errors.
