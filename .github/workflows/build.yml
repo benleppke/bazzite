@@ -191,12 +191,13 @@ jobs:
           oci: false
           layers: true
           squash: false
-          # Shared layer cache in GHCR. Without this, each runner keeps an
-          # isolated local cache and a job that lands on the wrong runner
-          # rebuilds layers from scratch.
+          # Cache in the image's own GHCR package. Separate cache packages
+          # need "Manage Actions access" for the repo, and buildah's cache push
+          # fails with 403 when reusing a blob there. The image package already
+          # has the repository linked.
           extra-args: |
-            --cache-from=${{ env.IMAGE_REGISTRY }}/bazzite-build-cache-${{ matrix.flavor }}
-            --cache-to=${{ env.IMAGE_REGISTRY }}/bazzite-build-cache-${{ matrix.flavor }}
+            --cache-from=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}
+            --cache-to=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}
             --cache-ttl=168h
 
       # Rechunk is a script that we use on Universal Blue to make sure there isnt a single huge layer when your image gets published.
