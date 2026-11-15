@@ -319,7 +319,9 @@ jobs:
           curl -fsSL -o "${RUNNER_TEMP}/rclone.deb" \
             "https://downloads.rclone.org/${version}/rclone-${version}-linux-amd64.deb"
           sudo dpkg -i --force-overwrite "${RUNNER_TEMP}/rclone.deb"
-          rclone version | head -1
+          # Print both version lines: piping into `head` makes rclone take
+          # SIGPIPE, and pipefail turns that into exit 141.
+          rclone version
 
       - name: Upload ISO to B2
         run: |
@@ -397,7 +399,9 @@ jobs:
           curl -fsSL -o "${RUNNER_TEMP}/rclone.deb" \
             "https://downloads.rclone.org/${version}/rclone-${version}-linux-amd64.deb"
           sudo dpkg -i --force-overwrite "${RUNNER_TEMP}/rclone.deb"
-          rclone version | head -1
+          # Print both version lines: piping into `head` makes rclone take
+          # SIGPIPE, and pipefail turns that into exit 141.
+          rclone version
 
       - name: Build and upload index
         run: |
