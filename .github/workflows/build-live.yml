@@ -121,12 +121,14 @@ jobs:
             exit 1
           fi
 
+      # Log in with rootful podman directly. The Docker login action only
+      # updates ~/.docker/config.json, while `sudo podman` prefers the
+      # containers auth file and can otherwise reuse a stale token.
       - name: Log in to GHCR
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.GITHUB_TOKEN }}" | sudo podman login ghcr.io \
+            --username "${{ github.actor }}" --password-stdin
 
       - name: Pull base image
         run: |
@@ -151,24 +153,54 @@ jobs:
           echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
           echo "Target image digest: ${digest}"
 
+      - name: Compute installer hash
+        run: |
+          set -euo pipefail
+          hash="$(find installer -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -c1-16)"
+          echo "INSTALLER_HASH=${hash}" >> "${GITHUB_ENV}"
+          echo "Installer hash: ${hash}"
+
       - name: Build installer payload
         run: |
           set -euo pipefail
+          target_id="${{ steps.digest.outputs.digest }}"
+          if [[ -z "${target_id}" || "${target_id}" == "unknown" ]]; then
+            target_id="${GITHUB_SHA}"
+          fi
           sudo podman build \
             --cap-add sys_admin \
             --security-opt label=disable \
             --build-arg BASE_IMAGE="${IMAGE_REGISTRY}/${PAYLOAD_BASE}:${DEFAULT_TAG}" \
             --build-arg INSTALL_IMAGE_PAYLOAD="${IMAGE_REGISTRY}/${TARGET_IMAGE}:${DEFAULT_TAG}" \
             --build-arg FLATPAK_DIR_SHORTNAME=gnome_flatpaks \
+            --build-arg TARGET_IMAGE_ID="${target_id}" \
+            --build-arg INSTALLER_HASH="${INSTALLER_HASH}" \
             -t "localhost/payload-${TARGET_IMAGE}:${DEFAULT_TAG}" \
             installer/
 
+      # Use the vendored builder instead of the Titanoboa action: the action's
+      # iso-dest handling calls realpath on a file that does not exist yet and
+      # fails after the ISO is built.
       - name: Build live ISO
         id: build
-        uses: ublue-os/titanoboa@5c457c3d0518bd17e754be0fd98a60d29d26abb4
-        with:
-          image-ref: localhost/payload-${{ matrix.flavor }}:${{ env.DEFAULT_TAG }}
-          iso-dest: ${{ github.workspace }}/output/${{ matrix.flavor }}-live-amd64.iso
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          sudo podman run --rm \
+            --cap-add sys_admin \
+            --security-opt label=disable \
+            -v "${GITHUB_WORKSPACE}/output:/output" \
+            -v "${GITHUB_WORKSPACE}/scripts/titanoboa/build_iso.sh:/src/build_iso.sh:ro" \
+            --mount type=image,source="localhost/payload-${TARGET_IMAGE}:${DEFAULT_TAG}",dst=/rootfs \
+            quay.io/fedora/fedora:latest \
+            /src/build_iso.sh
+          iso_file="$(find output -maxdepth 1 -name '*.iso' -print -quit)"
+          if [[ -z "${iso_file}" ]]; then
+            echo "::error::Titanoboa did not produce an ISO."
+            exit 1
+          fi
+          sudo mv -f "${iso_file}" "output/${ISO_NAME}"
+          sudo chown "$(id -u):$(id -g)" "output/${ISO_NAME}"
 
       - name: Generate checksum
         run: |
@@ -179,16 +211,21 @@ jobs:
       - name: Install Cosign
         uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
 
-      - name: Sign ISO
+      - name: Sign checksum
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
         run: |
           set -euo pipefail
-          iso="output/${ISO_NAME}"
-          cosign sign-blob -y --key env://COSIGN_PRIVATE_KEY "${iso}" \
-            --output-signature "${iso}.sig"
+          # cosign loads the whole blob into memory, so sign the small
+          # checksum instead of the 8 GB ISO. The checksum covers the ISO.
+          checksum="output/${ISO_NAME}.sha256"
+          cosign sign-blob -y --key env://COSIGN_PRIVATE_KEY "${checksum}" \
+            --bundle "${checksum}.bundle"
 
+      # GitHub attestations are not available for user-owned private repos.
+      # Keep the step for a future public repo, but skip it here.
       - name: Attest build provenance
+        if: github.event.repository.visibility == 'public'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
         with:
           subject-path: output/*.iso
@@ -215,15 +252,19 @@ jobs:
       - name: Verify initrd supports network live root
         run: |
           set -euo pipefail
-          if ! sudo podman run --rm \
-              --security-opt label=disable \
-              --entrypoint /usr/bin/lsinitrd \
-              -v "${GITHUB_WORKSPACE}/output/netboot/${TARGET_IMAGE}/initrd.img:/tmp/initrd.img:ro" \
-              "localhost/payload-${TARGET_IMAGE}:${DEFAULT_TAG}" \
-              /tmp/initrd.img | grep -q 'parse-livenet'; then
+          # Capture the listing first: piping into `grep -q` closes the pipe
+          # early and podman exits with SIGPIPE under pipefail.
+          listing="$(sudo podman run --rm \
+            --security-opt label=disable \
+            --entrypoint /usr/bin/lsinitrd \
+            -v "${GITHUB_WORKSPACE}/output/netboot/${TARGET_IMAGE}/initrd.img:/tmp/initrd.img:ro" \
+            "localhost/payload-${TARGET_IMAGE}:${DEFAULT_TAG}" \
+            /tmp/initrd.img)"
+          if ! grep -q 'parse-livenet' <<< "${listing}"; then
             echo "::error::initrd is missing the livenet module; netboot will not work."
             exit 1
           fi
+          echo "initrd contains the livenet module"
 
       - name: Generate manifest
         run: |
@@ -262,7 +303,7 @@ jobs:
               urls: {
                 iso: ($base_url + "/live/" + $date + "/" + $flavor + "-live-amd64.iso"),
                 checksum: ($base_url + "/live/" + $date + "/" + $flavor + "-live-amd64.iso.sha256"),
-                signature: ($base_url + "/live/" + $date + "/" + $flavor + "-live-amd64.iso.sig"),
+                bundle: ($base_url + "/live/" + $date + "/" + $flavor + "-live-amd64.iso.sha256.bundle"),
                 netboot: {
                   kernel: ($base_url + "/live/" + $date + "/netboot/" + $flavor + "/vmlinuz"),
                   initrd: ($base_url + "/live/" + $date + "/netboot/" + $flavor + "/initrd.img"),
@@ -274,18 +315,11 @@ jobs:
       - name: Install rclone
         run: |
           set -euo pipefail
-          if command -v rclone >/dev/null 2>&1; then
-            exit 0
-          fi
-          if command -v apt-get >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y rclone
-          elif command -v dnf >/dev/null 2>&1; then
-            sudo dnf install -y rclone
-          else
-            echo "::error::rclone is required but no supported package manager was found."
-            exit 1
-          fi
+          version="$(curl -fsSL https://downloads.rclone.org/version.txt | awk '{print $2}')"
+          curl -fsSL -o "${RUNNER_TEMP}/rclone.deb" \
+            "https://downloads.rclone.org/${version}/rclone-${version}-linux-amd64.deb"
+          sudo dpkg -i --force-overwrite "${RUNNER_TEMP}/rclone.deb"
+          rclone version | head -1
 
       - name: Upload ISO to B2
         run: |
@@ -294,7 +328,7 @@ jobs:
           rclone copy "output/${ISO_NAME}" "${dest}/" \
             --checksum --retries 3 --low-level-retries 10
           rclone copy "output/${ISO_NAME}.sha256" "${dest}/" --checksum
-          rclone copy "output/${ISO_NAME}.sig" "${dest}/" --checksum
+          rclone copy "output/${ISO_NAME}.sha256.bundle" "${dest}/" --checksum
 
       - name: Upload netboot assets to B2
         run: |
@@ -311,14 +345,14 @@ jobs:
           rclone check output "${base}" --one-way \
             --include "${ISO_NAME}" \
             --include "${ISO_NAME}.sha256" \
-            --include "${ISO_NAME}.sig"
+            --include "${ISO_NAME}.sha256.bundle"
 
       # Only promote after the dated objects are verified. A failed build
       # leaves the previous week's stable link untouched.
       - name: Publish stable aliases
         run: |
           set -euo pipefail
-          for suffix in "" ".sha256" ".sig"; do
+          for suffix in "" ".sha256" ".sha256.bundle"; do
             rclone copyto \
               "b2:${ISO_BUCKET}/bazzite/live/${BUILD_DATE}/${ISO_NAME}${suffix}" \
               "b2:${ISO_BUCKET}/bazzite/latest/${ISO_NAME}${suffix}"
@@ -349,18 +383,11 @@ jobs:
       - name: Install rclone
         run: |
           set -euo pipefail
-          if command -v rclone >/dev/null 2>&1; then
-            exit 0
-          fi
-          if command -v apt-get >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y rclone
-          elif command -v dnf >/dev/null 2>&1; then
-            sudo dnf install -y rclone
-          else
-            echo "::error::rclone is required but no supported package manager was found."
-            exit 1
-          fi
+          version="$(curl -fsSL https://downloads.rclone.org/version.txt | awk '{print $2}')"
+          curl -fsSL -o "${RUNNER_TEMP}/rclone.deb" \
+            "https://downloads.rclone.org/${version}/rclone-${version}-linux-amd64.deb"
+          sudo dpkg -i --force-overwrite "${RUNNER_TEMP}/rclone.deb"
+          rclone version | head -1
 
       - name: Build and upload index
         run: |
