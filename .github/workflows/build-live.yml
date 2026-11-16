@@ -14,6 +14,11 @@ on:
           - bazzite-gnome
           - bazzite-gnome-nvidia
           - bazzite-deck-gnome
+      publish_only:
+        description: "Regenerate index/menu only (skip ISO builds)"
+        required: false
+        default: false
+        type: boolean
   schedule:
     # Weekly on Sunday at 02:00 UTC, ahead of the daily image build at 08:10.
     - cron: '0 2 * * 0'
@@ -68,6 +73,7 @@ jobs:
   build:
     name: Build ${{ matrix.flavor }} live ISO
     needs: matrix
+    if: ${{ !inputs.publish_only }}
     runs-on: self-hosted
     permissions:
       contents: read

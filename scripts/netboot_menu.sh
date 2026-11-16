@@ -88,7 +88,8 @@ for flavor in "${flavors[@]}"; do
         "$label" "$(display_name "$flavor")" "$latest" >> "$items"
     {
         printf ':%s\n' "$label"
-        printf 'set nb %s/latest/netboot/%s\n' "$base" "$flavor"
+        printf 'set nb ${bzb}/latest/netboot/%s\n' "$flavor"
+        printf 'set live ${bzl}/latest/netboot/%s\n' "$flavor"
         printf 'goto boot\n\n'
     } >> "$labels"
     [[ -n "$default" ]] || default="$label"
@@ -104,7 +105,8 @@ for flavor in "${flavors[@]}"; do
             "$label" "$(display_name "$flavor")" "$date" >> "$older_items"
         {
             printf ':%s\n' "$label"
-            printf 'set nb %s/live/%s/netboot/%s\n' "$base" "$date" "$flavor"
+            printf 'set nb ${bzb}/live/%s/netboot/%s\n' "$date" "$flavor"
+            printf 'set live ${bzl}/live/%s/netboot/%s\n' "$date" "$flavor"
             printf 'goto boot\n\n'
         } >> "$labels"
     done
@@ -113,7 +115,8 @@ done
 cat <<EOF
 #!ipxe
 # Bazzite live ISOs, generated ${generated}
-set bzb ${base}
+isset bzb || set bzb ${base}
+isset bzl || set bzl ${base}
 isset space || set space --
 
 :start
@@ -150,7 +153,7 @@ cat <<'EOF'
 
 :boot
 imgfree
-kernel ${nb}/vmlinuz initrd=initrd.img root=live:${nb}/squashfs.img rd.live.image rd.neednet=1 ip=dhcp enforcing=0 quiet
+kernel ${nb}/vmlinuz initrd=initrd.img root=live:${live}/squashfs.img rd.live.image rd.neednet=1 ip=dhcp enforcing=0 quiet
 initrd ${nb}/initrd.img
 boot
 
