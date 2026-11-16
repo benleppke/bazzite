@@ -88,8 +88,8 @@ for flavor in "${flavors[@]}"; do
         "$label" "$(display_name "$flavor")" "$latest" >> "$items"
     {
         printf ':%s\n' "$label"
-        printf 'set nb ${bzb}/latest/netboot/%s\n' "$flavor"
-        printf 'set live ${bzl}/latest/netboot/%s\n' "$flavor"
+        printf 'set nb ${bazzite_kernel}/latest/netboot/%s\n' "$flavor"
+        printf 'set live ${bazzite_live}/latest/netboot/%s\n' "$flavor"
         printf 'goto boot\n\n'
     } >> "$labels"
     [[ -n "$default" ]] || default="$label"
@@ -105,8 +105,8 @@ for flavor in "${flavors[@]}"; do
             "$label" "$(display_name "$flavor")" "$date" >> "$older_items"
         {
             printf ':%s\n' "$label"
-            printf 'set nb ${bzb}/live/%s/netboot/%s\n' "$date" "$flavor"
-            printf 'set live ${bzl}/live/%s/netboot/%s\n' "$date" "$flavor"
+            printf 'set nb ${bazzite_kernel}/live/%s/netboot/%s\n' "$date" "$flavor"
+            printf 'set live ${bazzite_live}/live/%s/netboot/%s\n' "$date" "$flavor"
             printf 'goto boot\n\n'
         } >> "$labels"
     done
@@ -115,8 +115,8 @@ done
 cat <<EOF
 #!ipxe
 # Bazzite live ISOs, generated ${generated}
-isset bzb || set bzb ${base}
-isset bzl || set bzl ${base}
+isset bazzite_kernel || set bazzite_kernel ${base}
+isset bazzite_live || set bazzite_live ${base}
 isset space || set space --
 
 :start
