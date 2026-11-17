@@ -1,16 +1,15 @@
-# bazzite
+# Bazzite
 
-Personal customized [Bazzite](https://bazzite.gg/) bootc images, derived from
-the upstream `ghcr.io/ublue-os/bazzite-*:stable` images with my package,
-desktop, and theming changes.
+Customized [Bazzite](https://bazzite.gg/) bootc images, built on `ghcr.io/ublue-os/bazzite-*:stable` with additional packages providing tools and theming.
 
-This is not a general-purpose distribution. It is built and signed for my own
-machines.
+> [!CAUTION]
+> These images are not intended for general purpose use. They are tuned to my own personal workflow and tastes which may change at any time without warning.
+
+While these images are listed publicly primarily for my own convenience I do also provide this project as example you can reference if you want to [create your own image](https://github.com/ublue-os/image-template).
 
 ## Published images
 
-Images are built by `.github/workflows/build.yml` on pushes to `main` and on
-the daily schedule, then pushed to GitHub Container Registry.
+Images are built daily and pushed to GHCR.
 
 | Flavor | Image |
 | --- | --- |
@@ -18,8 +17,7 @@ the daily schedule, then pushed to GitHub Container Registry.
 | GNOME + NVIDIA | `ghcr.io/benleppke/bazzite-gnome-nvidia:latest` |
 | Deck GNOME | `ghcr.io/benleppke/bazzite-deck-gnome:latest` |
 
-Tags include `latest`, `latest.YYYYMMDD`, and branch tags. Images are cosigned
-with the key in `cosign.pub`.
+Tags include `latest`, `latest.YYYYMMDD`, and branch tags.
 
 Switch an existing system with:
 
@@ -29,8 +27,7 @@ sudo bootc switch ghcr.io/benleppke/bazzite-gnome:latest
 
 ## Local builds
 
-The `Justfile` is the main local build entry point. Run `just` to list all
-recipes.
+Run `just` to list all recipes.
 
 ```bash
 just build <flavor>          # rootless container build
@@ -112,9 +109,8 @@ local changes.
 
 ### Downloads
 
-Scheduled builds publish to Backblaze B2 behind `isos.benleppke.com`. Dated
-snapshots are kept for roughly four weeks; `latest` always points at the most
-recent successful build.
+Scheduled builds publish `isos.benleppke.com`. Dated snapshots are kept for
+roughly four weeks; `latest` always points at the most recent successful build.
 
 Stable links:
 
