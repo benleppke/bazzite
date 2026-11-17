@@ -19,3 +19,7 @@ chmod 700 "$GNUPGHOME"
 # always fresh and never baked into the image or the persistent /var/cache.
 mkdir -p /etc/dnf/libdnf5.conf.d
 printf '[main]\nsystem_cachedir=/tmp/dnf-cache\n' > /etc/dnf/libdnf5.conf.d/99-build.conf
+
+# Compile the dconf defaults shipped in system_files so the image boots with an
+# up-to-date system database (rather than relying on dconf-update.service).
+dconf update
