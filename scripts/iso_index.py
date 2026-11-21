@@ -144,6 +144,16 @@ a:hover { text-decoration: underline; }
   border-radius: 8px;
 }
 
+/* Cards in a row are the same height, but the descriptions wrap to a
+   different number of lines. Let the description block take the slack so the
+   date, checksum and download button line up across the row at any width. */
+.card-desc {
+  flex-grow: 1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .card-head {
   display: flex;
   align-items: baseline;
@@ -163,8 +173,6 @@ a:hover { text-decoration: underline; }
 }
 
 .badge.warn { border-color: var(--accent); color: var(--accent); }
-
-.card-desc { margin: 0; color: var(--muted); font-size: 0.9rem; }
 
 .card-meta {
   margin: 0;
@@ -229,6 +237,15 @@ code {
   background: transparent;
   border: 0;
   border-radius: 0;
+}
+
+/* A card is narrower than the verify commands. Wrap them inside the card so
+   every line is readable without horizontal scrolling; the padding above
+   reserves room so no line runs underneath the copy button. The full-width
+   section below keeps the commands on one line each. */
+.card .install-wrap pre.install {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .copy-btn {
