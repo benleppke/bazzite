@@ -548,25 +548,20 @@ jobs:
           dest="b2:${ISO_BUCKET}/bazzite/latest"
           dir="${RUNNER_TEMP}/iso-index"
 
-          # Set the content type explicitly: rclone guesses from the extension
-          # and maps .pub to application/vnd.exstream-package, which makes a
-          # text PEM key download as an unknown package. Cloudflare does not
-          # cache .html/.json by default (verified: cf-cache-status DYNAMIC),
-          # so the cache header only bounds a future Cache Everything rule.
-          for spec in \
-            "index.html:text/html; charset=utf-8" \
-            "SHA256SUMS:text/plain; charset=utf-8" \
-            "SHA256SUMS.bundle:application/octet-stream"; do
-            file="${spec%%:*}"
-            rclone copyto "${dir}/${file}" "${dest}/${file}" \
-              --header-upload "Content-Type: ${spec#*:}" \
-              --header-upload "Cache-Control: public, max-age=600"
+          # Plain copies: rclone's B2 backend ignores --header-upload, so the
+          # content type is whatever B2 infers from the extension. Verified on
+          # the live objects: index.html → text/html, everything else →
+          # application/octet-stream, and cosign.pub → application/vnd.exstream-package
+          # (a nonsense but harmless type for a file you download, not read).
+          # Cloudflare serves all of these DYNAMIC, so freshness does not depend
+          # on cache headers either.
+          for file in index.html SHA256SUMS SHA256SUMS.bundle; do
+            rclone copyto "${dir}/${file}" "${dest}/${file}"
           done
 
           # Ship the verification key beside the signatures so verifying never
           # depends on the repository being readable.
-          rclone copyto cosign.pub "${dest}/cosign.pub" \
-            --header-upload "Content-Type: text/plain; charset=utf-8"
+          rclone copyto cosign.pub "${dest}/cosign.pub"
 
           listing="$(rclone lsf --files-only "${dest}")"
           for file in index.html SHA256SUMS SHA256SUMS.bundle cosign.pub; do
