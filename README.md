@@ -183,7 +183,7 @@ https://isos.benleppke.com/bazzite/latest/menu.ipxe
 The menu is rebuilt from `index.json` on every publish run: it lists the latest
 release per flavor plus the older releases still inside the lifecycle window.
 Note that `root=live:http(s)://` downloads the whole squashfs into the
-initramfs (`/tmp`, i.e. RAM), while `root=live:nfs://` mounts it in place.
+initramfs (`/tmp`, i.e. RAM); targets using this need at least 16 GB of RAM.
 
 Publishing uses the repository variable `B2_BUCKET_NAME` (default
 `benleppke-bazzite-isos`) and the secrets `B2_APPLICATION_KEY_ID` and
