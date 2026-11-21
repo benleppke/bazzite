@@ -117,6 +117,11 @@ h3 {
 a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+}
+
 .note {
   margin: 1.5rem 0 0;
   padding: 0.7rem 0.9rem;
@@ -129,7 +134,7 @@ a:hover { text-decoration: underline; }
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1rem;
   margin-top: 1.5rem;
 }
@@ -137,16 +142,17 @@ a:hover { text-decoration: underline; }
 .card {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.55rem;
+  min-width: 0;
   padding: 1rem 1.1rem;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
 /* Cards in a row are the same height, but the descriptions wrap to a
-   different number of lines. Let the description block take the slack so the
-   date, checksum and download button line up across the row at any width. */
+   different number of lines. Let the description take the slack so the
+   checksum and download button line up across the row at any width. */
 .card-desc {
   flex-grow: 1;
   margin: 0;
@@ -161,8 +167,17 @@ a:hover { text-decoration: underline; }
   gap: 0.6rem;
 }
 
-.badge {
+.card-head h3 { min-width: 0; }
+
+.badges {
+  display: flex;
   flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.badge {
   padding: 0.05rem 0.5rem;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -180,11 +195,71 @@ a:hover { text-decoration: underline; }
   font-size: 0.9rem;
 }
 
-.card-sha {
+/* The full checksum is in the DOM and in data-copy. Cards use the .fill
+   variant so the hash occupies the space up to the right-aligned Copy button
+   and ellipsizes just before it, rather than wrapping to a second line. */
+.hash-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  min-width: 0;
   margin: 0;
   color: var(--muted);
   font-size: 0.75rem;
+}
+
+.hash-label {
+  flex: none;
+  padding-top: 0.05rem;
+  color: var(--muted);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.hash-line code {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--fg);
+  font-size: 0.75rem;
+  line-height: 1.4;
   overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.hash-line.fill code {
+  flex: 1 1 auto;
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Keep the button the same width in every state so "Copy" -> "Copied" does
+   not move the checksum or table columns. */
+.copy-btn {
+  flex: none;
+  min-width: 5em;
+  padding: 0.08rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--button-bg);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.copy-btn:hover { color: var(--heading); border-color: var(--accent); }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
 }
 
 .button {
@@ -199,77 +274,119 @@ a:hover { text-decoration: underline; }
 
 .button:hover { text-decoration: none; filter: brightness(1.08); }
 
-.card .button { margin-top: 0.15rem; }
+.card .button { flex: 1 1 auto; }
 
-details { margin-top: 0.25rem; }
-
-summary {
-  cursor: pointer;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-pre {
-  background: var(--code-bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.9rem 1.1rem;
-  overflow-x: auto;
-}
-
-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.85rem;
-}
-
-.install-wrap {
-  position: relative;
-  margin-top: 0.6rem;
+/* Code blocks have their own toolbar, so the copy button does not steal a
+   column from the commands. Full-width blocks wrap long lines; the copy
+   button still copies the exact text. */
+.code-block {
+  min-width: 0;
+  margin-top: 0.15rem;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--code-bg);
   overflow: hidden;
 }
 
-.install-wrap pre.install {
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.3rem 0.45rem 0.3rem 0.8rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+
+.code-title {
+  color: var(--muted);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.code-block pre {
   margin: 0;
-  padding: 0.8rem 4.2rem 0.8rem 1rem;
+  padding: 0.8rem 1rem;
   background: transparent;
   border: 0;
   border-radius: 0;
-}
-
-/* A card is narrower than the verify commands. Wrap them inside the card so
-   every line is readable without horizontal scrolling; the padding above
-   reserves room so no line runs underneath the copy button. The full-width
-   section below keeps the commands on one line each. */
-.card .install-wrap pre.install {
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
-.copy-btn {
+.code-block code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+/* One tab per flavor, plus All at the end. The radios are visually hidden but
+   remain keyboard accessible. */
+.verify-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.verify-picker > input {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  padding: 0.15rem 0.45rem;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.verify-picker > label {
+  padding: 0.4rem 0.8rem;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 999px;
   background: var(--card);
   color: var(--muted);
-  font-size: 0.7rem;
-  line-height: 1.4;
+  font-size: 0.9rem;
   cursor: pointer;
 }
 
-.copy-btn:hover { color: var(--heading); border-color: var(--accent); }
+.verify-picker > label:hover {
+  border-color: var(--accent);
+  color: var(--heading);
+}
+
+.verify-picker > input:checked + label {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+
+.verify-picker > input:focus-visible + label {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.verify-panels {
+  flex-basis: 100%;
+  min-width: 0;
+}
+
+.verify-panel { display: none; }
+
+.panel-meta {
+  margin: 0 0 0.45rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.panel-meta strong { color: var(--heading); }
 
 .table-wrap {
+  margin-top: 0.75rem;
   border: 1px solid var(--border);
   border-radius: 8px;
-  overflow: hidden;
   background: var(--card);
-  margin-top: 0.75rem;
+  overflow-x: auto;
 }
 
 table {
@@ -279,29 +396,68 @@ table {
 }
 
 th, td {
-  text-align: left;
   padding: 0.6rem 0.9rem;
   border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
   overflow-wrap: break-word;
 }
 
 thead th {
+  background: var(--button-bg);
   color: var(--muted);
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  background: var(--button-bg);
 }
 
 tbody tr:last-child td { border-bottom: none; }
 
-td.sha {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.8rem;
+td.sha .hash-line { font-size: 0.74rem; }
+td.sha .hash-line code { font-size: 0.74rem; }
+td.sha .copy-btn { font-size: 0.66rem; }
+
+td[data-label="Date"],
+td[data-label="Size"] { white-space: nowrap; }
+
+.iso-link { overflow-wrap: anywhere; }
+
+footer {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 1.25rem;
   color: var(--muted);
+  font-size: 0.85rem;
 }
 
-@media (max-width: 600px) {
+.footer-content { text-align: center; }
+.copyright { margin-top: 0; font-size: 14px; color: var(--muted); }
+.copyright a { color: var(--link); }
+
+@media (max-width: 720px) {
+  .cards { grid-template-columns: 1fr; }
+
+  .code-block pre,
+  .code-block code {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  /* A full checksum that is not in a card gets a header row: label and Copy
+     first, then the hash across full-width lines. Card hashes stay inline
+     and ellipsize. */
+  .hash-line:not(.fill):not(.short) { flex-wrap: wrap; }
+  .hash-line:not(.fill):not(.short) .hash-label { order: 1; }
+  .hash-line:not(.fill):not(.short) .copy-btn {
+    order: 2;
+    margin-left: auto;
+  }
+  .hash-line:not(.fill):not(.short) code {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .table-wrap { overflow-x: visible; }
   thead { display: none; }
 
   table, tbody, tr, td { display: block; }
@@ -323,37 +479,32 @@ td.sha {
     letter-spacing: 0.04em;
   }
 }
-
-footer {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 1.25rem;
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-.footer-content { text-align: center; }
-.copyright { margin-top: 0; font-size: 14px; color: var(--muted); }
-.copyright a { color: var(--link); }
 """
 
 SCRIPT = """
 document.querySelectorAll(".copy-btn").forEach(function (btn) {
   btn.addEventListener("click", function () {
-    var code = btn.closest(".install-wrap").querySelector("code");
-    var text = code.textContent.trim();
+    var host = btn.closest(".copyable, .code-block");
+    var code = host ? host.querySelector("code") : null;
+    if (!code) return;
+    var text = host.getAttribute("data-copy") || code.textContent.trim();
+    var old = btn.textContent;
     var done = function (label) {
-      var old = btn.textContent;
       btn.textContent = label;
-      setTimeout(function () { btn.textContent = old; }, 1500);
+      setTimeout(function () { btn.textContent = old; }, 1400);
     };
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(text).then(
         function () { done("Copied"); },
-        function () { done("Copy failed"); }
+        function () { done("Failed"); }
       );
     } else {
-      done("Select all");
+      var range = document.createRange();
+      range.selectNodeContents(code);
+      var selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      done("Select");
     }
   });
 });
@@ -411,14 +562,95 @@ def site_url(base_url):
     return f"{parts.scheme}://{parts.netloc}/"
 
 
-def cmd_box(command):
-    """A command with a copy button, styled like the package repository."""
+def copy_btn(aria="Copy"):
     return (
-        '<div class="install-wrap">'
-        f'<pre class="install"><code>{esc(command)}</code></pre>'
-        '<button class="copy-btn" type="button" aria-label="Copy command">'
-        "Copy</button>"
+        f'<button class="copy-btn" type="button" aria-label="{esc(aria)}">Copy</button>'
+    )
+
+
+def wrap_hash(value):
+    """Break a full checksum at 32 characters for narrow full-width layouts."""
+    value = str(value or "")
+    if len(value) > 32:
+        return f"{esc(value[:32])}<wbr>{esc(value[32:])}"
+    return esc(value)
+
+
+def hash_contents(sha, aria, show_label=True, short=False, wrap=True):
+    text = str(sha or "")
+    label = '<span class="hash-label">SHA-256</span>' if show_label else ""
+    if not text:
+        return f"{label}<code>unavailable</code>"
+    if short:
+        shown = esc(short_sha(text))
+    elif wrap:
+        shown = wrap_hash(text)
+    else:
+        shown = esc(text)
+    return f'{label}<code title="{esc(text)}">{shown}</code>{copy_btn(aria=aria)}'
+
+
+def hash_line(sha, aria, fill=False, short=False):
+    """A checksum with a copy button. Cards use fill=True."""
+    text = str(sha or "")
+    classes = "hash-line copyable"
+    if fill:
+        classes += " fill"
+    if short:
+        classes += " short"
+    data = f' data-copy="{esc(text)}"' if text else ""
+    return (
+        f'<p class="{classes}"{data}>'
+        f"{hash_contents(sha, aria, short=short, wrap=not fill)}</p>"
+    )
+
+
+def hash_inline(sha, aria, short=False):
+    text = str(sha or "")
+    classes = "hash-line copyable"
+    if short:
+        classes += " short"
+    data = f' data-copy="{esc(text)}"' if text else ""
+    return (
+        f'<span class="{classes}"{data}>'
+        f"{hash_contents(sha, aria, show_label=False, short=short)}</span>"
+    )
+
+
+def code_block(command, title):
+    return (
+        '<div class="code-block">'
+        f'<div class="code-head"><span class="code-title">{esc(title)}</span>'
+        f"{copy_btn(aria='Copy commands')}</div>"
+        f"<pre><code>{esc(command)}</code></pre>"
         "</div>"
+    )
+
+
+def verify_commands(base_url, iso_name):
+    """Keep each line short enough to read inside the page."""
+    return "\n".join(
+        [
+            f"base={base_url}/latest",
+            f"iso={iso_name}",
+            'curl -LO "$base/$iso" "$base/$iso.sha256" "$base/$iso.sha256.bundle"',
+            'curl -LO "$base/cosign.pub"',
+            'sha256sum -c "$iso.sha256"',
+            "cosign verify-blob --key cosign.pub \\",
+            '  --bundle "$iso.sha256.bundle" "$iso.sha256"',
+        ]
+    )
+
+
+def aggregate_command(base_url):
+    return "\n".join(
+        [
+            f"base={base_url}/latest",
+            'curl -LO "$base/SHA256SUMS" "$base/SHA256SUMS.bundle" "$base/cosign.pub"',
+            "cosign verify-blob --key cosign.pub \\",
+            "  --bundle SHA256SUMS.bundle SHA256SUMS",
+            "sha256sum -c SHA256SUMS",
+        ]
     )
 
 
@@ -443,65 +675,124 @@ def iso_url(base_url, date, manifest):
     return f"{base_url}/live/{date}/{(manifest.get('iso') or {}).get('name', '')}"
 
 
-def render_card(base_url, flavor, entry, reference):
-    name = flavor["name"]
-    pairs = releases(entry)
-    badge = ""
+def badge_html(flavor, date, reference):
+    badges = []
     if flavor.get("badge"):
-        badge = f'<span class="badge">{esc(flavor["badge"])}</span>'
+        badges.append(f'<span class="badge">{esc(flavor["badge"])}</span>')
+    age = days_old(date, reference)
+    if age is not None and age > STALE_DAYS:
+        badges.append(f'<span class="badge warn">built {age} days ago</span>')
+    if not badges:
+        return ""
+    return '<span class="badges">' + "".join(badges) + "</span>"
 
+
+def latest_release(base_url, flavor, entry):
+    pairs = releases(entry)
     if not pairs:
-        return (
-            '<article class="card">'
-            f'<div class="card-head"><h3>{esc(flavor["display"])}</h3>{badge}</div>'
-            f'<p class="card-desc">{esc(flavor.get("description", ""))}</p>'
-            '<p class="card-meta">No build published yet.</p>'
-            "</article>"
-        )
-
+        return None
     date, manifest = pairs[0]
     iso = manifest.get("iso") or {}
-    iso_name = iso.get("name") or f"{name}-live-amd64.iso"
-    sha256 = iso.get("sha256") or ""
-    download = f"{base_url}/latest/{iso_name}"
+    iso_name = iso.get("name") or f"{flavor['name']}-live-amd64.iso"
+    return {
+        "date": date,
+        "manifest": manifest,
+        "iso": iso,
+        "iso_name": iso_name,
+        "sha": iso.get("sha256") or "",
+        "download": f"{base_url}/latest/{iso_name}",
+    }
 
-    age = days_old(date, reference)
-    badges = badge
-    if age is not None and age > STALE_DAYS:
-        badges += f'<span class="badge warn">built {age} days ago</span>'
-    badge_html = f"<span>{badges}</span>" if badges else ""
 
-    verify = "\n".join(
-        [
-            f"curl -LO {download}",
-            f"curl -LO {download}.sha256",
-            f"curl -LO {download}.sha256.bundle",
-            f"curl -LO {base_url}/latest/cosign.pub",
-            f"sha256sum -c {iso_name}.sha256",
-            "cosign verify-blob --key cosign.pub \\",
-            f"  --bundle {iso_name}.sha256.bundle {iso_name}.sha256",
-        ]
-    )
+def render_card(base_url, flavor, entry, reference):
+    pairs = releases(entry)
+    if not pairs:
+        return f"""<article class="card">
+  <div class="card-head">
+    <h3>{esc(flavor["display"])}</h3>
+    {badge_html(flavor, "", reference)}
+  </div>
+  <p class="card-desc">{esc(flavor.get("description", ""))}</p>
+  <p class="card-meta">No build published yet.</p>
+</article>"""
 
-    sha_cell = (
-        f'<p class="card-sha">sha256 '
-        f'<code title="{esc(sha256)}">{esc(short_sha(sha256))}</code></p>'
-    )
-
+    info = latest_release(base_url, flavor, entry)
     return f"""<article class="card">
   <div class="card-head">
     <h3>{esc(flavor["display"])}</h3>
-    {badge_html}
+    {badge_html(flavor, info["date"], reference)}
   </div>
   <p class="card-desc">{esc(flavor.get("description", ""))}</p>
-  <p class="card-meta">{esc(date)} · {esc(human_size(iso.get("size")))}</p>
-  {sha_cell}
-  <a class="button" href="{esc(download)}">Download ISO</a>
-  <details>
-    <summary>Verify this download</summary>
-    {cmd_box(verify)}
-  </details>
+  <p class="card-meta">{esc(info["date"])} · {esc(human_size(info["iso"].get("size")))}</p>
+  {hash_line(info["sha"], f"Copy SHA-256 checksum for {info["iso_name"]}", fill=True)}
+  <div class="actions">
+    <a class="button" href="{esc(info["download"])}">Download ISO</a>
+  </div>
 </article>"""
+
+
+def verify_tab_css(flavors):
+    rules = []
+    for flavor in flavors:
+        name = flavor["name"]
+        rules.append(
+            f"#verify-{name}:checked ~ .verify-panels #panel-{name} "
+            "{ display: block; }"
+        )
+    rules.append("#verify-all:checked ~ .verify-panels #panel-all { display: block; }")
+    return "\n".join(rules)
+
+
+def verify_panel(base_url, flavor, entry):
+    info = latest_release(base_url, flavor, entry)
+    if info is None:
+        return '<p class="card-desc">No build published yet.</p>'
+    return (
+        f'<p class="panel-meta"><strong>{esc(info["iso_name"])}</strong> · '
+        f"built {esc(info['date'])} · "
+        f"{esc(human_size(info['iso'].get('size')))}</p>"
+        f"{hash_line(info['sha'], f'Copy SHA-256 checksum for {info["iso_name"]}')}"
+        f"{code_block(verify_commands(base_url, info['iso_name']), 'Linux shell')}"
+    )
+
+
+def render_verify(base_url, flavors, entries, aggregate):
+    controls = []
+    panels = []
+
+    for index, flavor in enumerate(flavors):
+        name = flavor["name"]
+        checked = " checked" if index == 0 else ""
+        controls.append(
+            f'<input type="radio" name="verify-flavor" '
+            f'id="verify-{esc(name)}"{checked}>'
+            f'<label for="verify-{esc(name)}">{esc(flavor["display"])}</label>'
+        )
+        panels.append(
+            f'<div class="verify-panel" id="panel-{esc(name)}">'
+            f"{verify_panel(base_url, flavor, entries.get(name))}</div>"
+        )
+
+    all_checked = " checked" if not flavors else ""
+    controls.append(
+        '<input type="radio" name="verify-flavor" '
+        f'id="verify-all"{all_checked}><label for="verify-all">All</label>'
+    )
+    panels.append(
+        '<div class="verify-panel" id="panel-all">'
+        '<p class="card-desc"><code>SHA256SUMS</code> covers every published '
+        "flavor and is signed as a single file. Download all the ISOs into one "
+        "directory first, then run this there.</p>"
+        f"{code_block(aggregate, 'All flavors')}</div>"
+    )
+
+    return f"""<section id="verify">
+  <h2>Verify a download</h2>
+  <div class="verify-picker">
+    {"".join(controls)}
+    <div class="verify-panels">{"".join(panels)}</div>
+  </div>
+</section>"""
 
 
 def render_earlier(base_url, flavors, index):
@@ -513,16 +804,17 @@ def render_earlier(base_url, flavors, index):
             iso = manifest.get("iso") or {}
             iso_name = iso.get("name") or name
             link = iso_url(base_url, date, manifest)
+            sha = iso.get("sha256") or ""
             rows.append(
                 "<tr>"
                 f'<td data-label="Date">{esc(date)}</td>'
                 f'<td data-label="Flavor">{esc(flavor["display"])}</td>'
                 f'<td data-label="Size">{esc(human_size(iso.get("size")))}</td>'
-                f'<td data-label="Download"><a href="{esc(link)}">'
-                f"{esc(iso_name)}</a></td>"
-                f'<td class="sha" data-label="SHA256" '
-                f'title="{esc(iso.get("sha256", ""))}">'
-                f'{esc(short_sha(iso.get("sha256")))}</td>'
+                f'<td data-label="Download"><a class="iso-link" '
+                f'href="{esc(link)}">{esc(iso_name)}</a></td>'
+                f'<td class="sha" data-label="SHA256">'
+                f"{hash_inline(sha, f'Copy SHA-256 checksum for {iso_name}', short=True)}"
+                "</td>"
                 "</tr>"
             )
 
@@ -555,30 +847,29 @@ def render_netboot(base_url, flavors, index):
             break
 
     if example is None:
-        body = "<p>No release is published yet.</p>"
-    else:
-        flavor, manifest = example
-        netboot = manifest.get("netboot") or {}
-        kernel_args = netboot.get("kernel_args") or "rd.live.image enforcing=0 quiet"
-        base = f"{base_url}/latest/netboot/{flavor['name']}"
-        kernel = (
-            f"kernel {base}/vmlinuz initrd=initrd.img "
-            f"root=live:{base}/squashfs.img rd.neednet=1 ip=dhcp {kernel_args}"
-        )
-        body = f"""<p class="card-desc">
+        return "<p>No release is published yet.</p>"
+
+    flavor, manifest = example
+    netboot = manifest.get("netboot") or {}
+    kernel_args = netboot.get("kernel_args") or "rd.live.image enforcing=0 quiet"
+    prefix = f"{base_url}/latest/netboot/{flavor['name']}"
+    kernel = (
+        f"kernel {prefix}/vmlinuz initrd=initrd.img "
+        f"root=live:{prefix}/squashfs.img rd.neednet=1 ip=dhcp {kernel_args}"
+    )
+    command = "\n".join([kernel, f"initrd {prefix}/initrd.img"])
+
+    return f"""<p class="card-desc">
   Example for {esc(flavor["display"])}. The kernel, initrd and squashfs below
   are the same artefacts the ISO boots, extracted at build time. Each release
   also publishes a <code>manifest.json</code> with the exact URLs and hashes.
 </p>
-{cmd_box(chr(10).join([kernel, f"initrd {base}/initrd.img"]))}"""
-
-    return f"""{body}
+{code_block(command, "iPXE over HTTP(S)")}
 <p class="card-desc">
-  The <a href="{esc(base_url)}/latest/menu.ipxe">generated iPXE menu</a> lists
-  every published flavor and the older releases still inside the retention
-  window. Note that <code>root=live:http(s)://</code> downloads the whole
-  squashfs into the initramfs (RAM), while <code>root=live:nfs://</code>
-  mounts it in place.
+  This downloads the whole squashfs into the initramfs; use at least 16 GB of
+  RAM on the target. The
+  <a href="{esc(base_url)}/latest/menu.ipxe">generated iPXE menu</a> lists every
+  published flavor and the older releases still inside the retention window.
 </p>"""
 
 
@@ -601,18 +892,7 @@ def render(index, flavors):
         render_card(base_url, flavor, entries.get(flavor["name"]), reference)
         for flavor in flavors
     )
-
-    names = ", ".join(f["display"] for f in flavors)
-    aggregate = "\n".join(
-        [
-            f"curl -LO {base_url}/latest/SHA256SUMS",
-            f"curl -LO {base_url}/latest/SHA256SUMS.bundle",
-            f"curl -LO {base_url}/latest/cosign.pub",
-            "cosign verify-blob --key cosign.pub \\",
-            "  --bundle SHA256SUMS.bundle SHA256SUMS",
-            "sha256sum -c SHA256SUMS",
-        ]
-    )
+    aggregate = aggregate_command(base_url)
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -630,7 +910,8 @@ def render(index, flavors):
   <link rel="alternate" type="application/json"
         href="{esc(base_url)}/latest/index.json"
         title="Machine-readable release index">
-  <style>{CSS}</style>
+  <style>{CSS}
+{verify_tab_css(flavors)}</style>
 </head>
 <body>
   <div class="page-heading">
@@ -650,16 +931,7 @@ def render(index, flavors):
 {cards}
     </div>
 
-    <section id="verify">
-      <h2>Verify every download at once</h2>
-      <p class="card-desc">
-        <code>SHA256SUMS</code> covers all published flavors ({esc(names)}) and is
-        signed as a single file. Download the three ISOs into one directory
-        first, then run this there. Each ISO's own checksum is signed too, so a
-        single download can be verified on its own from the card above.
-      </p>
-      {cmd_box(aggregate)}
-    </section>
+    {render_verify(base_url, flavors, entries, aggregate)}
 
     <section id="netboot">
       <h2>Netboot</h2>
