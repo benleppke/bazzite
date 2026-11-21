@@ -3,3 +3,4 @@ _build*
 build/
 output
 .env
+__pycache__/

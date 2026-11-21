@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # Generate the netboot.xyz iPXE menu for the published live ISOs.
 #
-# Usage: netboot_menu.sh <index.json>
+# Usage: netboot_menu.sh <index.json> [flavors.json]
 #
 # The menu is rebuilt from bazzite/latest/index.json on every publish run, so
 # netboot.xyz only has to chain to bazzite/latest/menu.ipxe once. Flavours and
 # releases come and go with the index; nothing here needs editing.
+#
+# flavors.json supplies the display names and the preferred menu order. It is
+# the same file the ISO download page reads, so the two never disagree about
+# what a flavour is called.
 #
 # iPXE executes a script linearly, so all menu items and the `choose` command
 # must be emitted before any `:label` block.
@@ -16,7 +20,13 @@ set -euo pipefail
 
 index="${1:-}"
 if [[ -z "$index" || ! -f "$index" ]]; then
-    echo "usage: $0 <index.json>" >&2
+    echo "usage: $0 <index.json> [flavors.json]" >&2
+    exit 1
+fi
+
+flavors_file="${2:-$(dirname "$0")/flavors.json}"
+if [[ ! -f "$flavors_file" ]]; then
+    echo "$0: flavour list not found: $flavors_file" >&2
     exit 1
 fi
 
@@ -24,12 +34,11 @@ base="$(jq -r '.base_url' "$index")"
 generated="$(jq -r '.generated_at // "unknown"' "$index")"
 
 display_name() {
-    case "$1" in
-        bazzite-gnome)        echo "Bazzite GNOME" ;;
-        bazzite-gnome-nvidia) echo "Bazzite GNOME NVIDIA" ;;
-        bazzite-deck-gnome)   echo "Bazzite Deck GNOME" ;;
-        *)                    echo "$1" ;;
-    esac
+    local display
+    display="$(jq -r --arg f "$1" \
+        '.flavors[] | select(.name == $f) | .display // empty' \
+        "$flavors_file")"
+    printf '%s\n' "${display:-$1}"
 }
 
 # Releases are the non-null date entries, newest first. Deriving the latest
@@ -55,10 +64,11 @@ add_flavor() {
     fi
 }
 
-# Preferred menu order; anything else follows in index order.
-for flavor in bazzite-gnome bazzite-gnome-nvidia bazzite-deck-gnome; do
+# Preferred menu order comes from flavors.json; anything else in the index
+# follows in index order.
+while read -r flavor; do
     add_flavor "$flavor"
-done
+done < <(jq -r '.flavors[].name' "$flavors_file")
 while read -r flavor; do
     case " ${flavors[*]} " in
         *" $flavor "*) ;;

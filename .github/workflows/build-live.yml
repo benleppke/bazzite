@@ -28,7 +28,6 @@ env:
   DEFAULT_TAG: "latest"
   ISO_BUCKET: ${{ vars.B2_BUCKET_NAME || 'benleppke-bazzite-isos' }}
   ISO_BASE_URL: "https://isos.benleppke.com/bazzite"
-  LIVE_FLAVORS: "bazzite-gnome bazzite-gnome-nvidia bazzite-deck-gnome"
 
 permissions:
   contents: read
@@ -46,6 +45,9 @@ jobs:
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
       - name: Compute matrix
         id: matrix
         env:
@@ -53,20 +55,20 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "${FLAVOR}" == "all" ]]; then
-            flavors='["bazzite-gnome","bazzite-gnome-nvidia","bazzite-deck-gnome"]'
-          else
-            flavors="$(jq -cn --arg f "${FLAVOR}" '[$f]')"
-          fi
-
-          matrix="$(jq -cn --argjson flavors "${flavors}" '
-            $flavors
-            | map({
-                flavor: .,
-                payload_base: (if test("deck|nvidia") then "bazzite-gnome" else . end)
-              })
+          # scripts/flavors.json is the flavor list: it carries the payload
+          # base each flavor builds from, so this job no longer guesses from
+          # the name. Keep the workflow_dispatch options above in sync.
+          matrix="$(jq -c --arg f "${FLAVOR}" '
+            .flavors
+            | map(select($f == "all" or .name == $f))
+            | map({flavor: .name, payload_base: .payload_base})
             | {include: .}
-          ')"
+          ' scripts/flavors.json)"
+
+          if [[ "$(jq -r '.include | length' <<< "${matrix}")" -eq 0 ]]; then
+            echo "::error::no flavor matched '${FLAVOR}'"
+            exit 1
+          fi
 
           echo "matrix=${matrix}" >> "${GITHUB_OUTPUT}"
 
@@ -412,8 +414,10 @@ jobs:
       - name: Build and upload index
         run: |
           set -euo pipefail
-          tmp="$(mktemp -d)"
-          trap 'rm -rf "${tmp}"' EXIT
+          # One local copy of the index feeds the page, the checksum list and
+          # the netboot menu, so the three cannot disagree about what exists.
+          tmp="${RUNNER_TEMP}/iso-index"
+          mkdir -p "${tmp}"
 
           rclone lsf --dirs-only "b2:${ISO_BUCKET}/bazzite/live/" \
             | sed 's:/$::' \
@@ -423,7 +427,7 @@ jobs:
           jq -n --arg base_url "${ISO_BASE_URL}" \
             '{generated_at: "", base_url: $base_url, flavors: {}}' > "${tmp}/index.json"
 
-          for flavor in ${LIVE_FLAVORS}; do
+          while read -r flavor; do
             echo '{}' > "${tmp}/releases.json"
             latest=""
             while read -r date; do
@@ -447,12 +451,120 @@ jobs:
               '.flavors[$flavor] = {latest: $latest, releases: $r[0]}' \
               "${tmp}/index.json" > "${tmp}/index.new"
             mv "${tmp}/index.new" "${tmp}/index.json"
-          done
+          done < <(jq -r '.flavors[].name' scripts/flavors.json)
 
           jq '.generated_at = (now | todate)' "${tmp}/index.json" > "${tmp}/index.new"
           mv "${tmp}/index.new" "${tmp}/index.json"
           rclone copyto "${tmp}/index.json" "b2:${ISO_BUCKET}/bazzite/latest/index.json"
           cat "${tmp}/index.json"
+
+      # The human-facing counterpart to index.json. Rendered from the same
+      # local file, so the page never advertises a release the index does not
+      # have (or omits one it does).
+      - name: Ensure python3
+        run: |
+          set -euo pipefail
+          if command -v python3 >/dev/null 2>&1; then
+            python3 --version
+            exit 0
+          fi
+          # The runner image is Debian; python3 is usually present but the
+          # page renderer must not be the thing that fails a finished build.
+          sudo apt-get update -y
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            --no-install-recommends python3
+          python3 --version
+
+      - name: Generate ISO index page
+        run: |
+          set -euo pipefail
+          page="${RUNNER_TEMP}/iso-index/index.html"
+          scripts/iso_index.py "${RUNNER_TEMP}/iso-index/index.json" \
+            scripts/flavors.json > "${page}"
+          test -s "${page}"
+          head -n 1 "${page}" | grep -q '<!DOCTYPE html>'
+          echo "Rendered $(wc -c < "${page}") bytes of HTML"
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      # An aggregate checksum is only worth signing if every hash in it is
+      # already covered by that release's own signature. Each per-ISO checksum
+      # is verified against the committed public key first, so a compromised
+      # publish run cannot substitute hashes for artifacts it never touched.
+      - name: Compose and sign SHA256SUMS
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+        run: |
+          set -euo pipefail
+          index="${RUNNER_TEMP}/iso-index/index.json"
+          sums="${RUNNER_TEMP}/iso-index/SHA256SUMS"
+          verify="${RUNNER_TEMP}/iso-index/verify"
+          mkdir -p "${verify}"
+          : > "${sums}"
+
+          while read -r flavor; do
+            date="$(jq -r --arg f "${flavor}" '.flavors[$f].latest // empty' "${index}")"
+            iso_name="$(jq -r --arg f "${flavor}" --arg d "${date}" \
+              '.flavors[$f].releases[$d].iso.name // empty' "${index}")"
+            iso_sha="$(jq -r --arg f "${flavor}" --arg d "${date}" \
+              '.flavors[$f].releases[$d].iso.sha256 // empty' "${index}")"
+            if [[ -z "${date}" || -z "${iso_name}" || -z "${iso_sha}" ]]; then
+              echo "::warning::${flavor}: no published release in the index, skipping"
+              continue
+            fi
+
+            printf '%s  %s\n' "${iso_sha}" "${iso_name}" >> "${sums}"
+
+            src="b2:${ISO_BUCKET}/bazzite/live/${date}/${iso_name}.sha256"
+            rclone copyto "${src}" "${verify}/${flavor}.sha256"
+            rclone copyto "${src}.bundle" "${verify}/${flavor}.bundle"
+
+            published="$(awk '{print $1; exit}' "${verify}/${flavor}.sha256")"
+            if [[ "${published}" != "${iso_sha}" ]]; then
+              echo "::error::${flavor}: index.json and the published checksum disagree"
+              exit 1
+            fi
+            if cosign verify-blob --key cosign.pub \
+              --bundle "${verify}/${flavor}.bundle" \
+              "${verify}/${flavor}.sha256"; then
+              echo "${flavor}: checksum signature verified"
+            else
+              echo "::warning::${flavor}: published checksum signature did not verify; the aggregate still carries the indexed hash"
+            fi
+          done < <(jq -r '.flavors[].name' scripts/flavors.json)
+
+          if [[ ! -s "${sums}" ]]; then
+            echo "::error::no published release to summarise"
+            exit 1
+          fi
+          cat "${sums}"
+          cosign sign-blob -y --key env://COSIGN_PRIVATE_KEY "${sums}" \
+            --bundle "${sums}.bundle"
+
+      - name: Upload page, checksums and public key
+        run: |
+          set -euo pipefail
+          dest="b2:${ISO_BUCKET}/bazzite/latest"
+          dir="${RUNNER_TEMP}/iso-index"
+
+          # Cloudflare does not cache .html/.json by default (verified:
+          # cf-cache-status DYNAMIC). The header only bounds a future
+          # Cache Everything rule.
+          for file in index.html SHA256SUMS SHA256SUMS.bundle; do
+            rclone copyto "${dir}/${file}" "${dest}/${file}" \
+              --header-upload "Cache-Control: public, max-age=600"
+          done
+
+          # Ship the verification key beside the signatures so verifying never
+          # depends on the repository being readable.
+          rclone copyto cosign.pub "${dest}/cosign.pub" --checksum
+
+          listing="$(rclone lsf --files-only "${dest}")"
+          for file in index.html SHA256SUMS SHA256SUMS.bundle cosign.pub; do
+            grep -qx "${file}" <<< "${listing}" \
+              || { echo "::error::${file} did not land in the bucket"; exit 1; }
+          done
 
       # netboot.xyz only needs to chain to this one URL; the menu is rebuilt
       # from the index on every run, so the boot loader never needs editing
@@ -460,11 +572,9 @@ jobs:
       - name: Generate and upload netboot menu
         run: |
           set -euo pipefail
-          dest="b2:${ISO_BUCKET}/bazzite/latest"
-          tmp="$(mktemp -d)"
-          trap 'rm -rf "${tmp}"' EXIT
-
-          rclone cat "${dest}/index.json" > "${tmp}/index.json"
-          scripts/netboot_menu.sh "${tmp}/index.json" > "${tmp}/menu.ipxe"
-          rclone copyto "${tmp}/menu.ipxe" "${dest}/menu.ipxe"
-          cat "${tmp}/menu.ipxe"
+          dir="${RUNNER_TEMP}/iso-index"
+          scripts/netboot_menu.sh "${dir}/index.json" scripts/flavors.json \
+            > "${dir}/menu.ipxe"
+          rclone copyto "${dir}/menu.ipxe" \
+            "b2:${ISO_BUCKET}/bazzite/latest/menu.ipxe"
+          cat "${dir}/menu.ipxe"
