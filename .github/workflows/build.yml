@@ -30,6 +30,12 @@ jobs:
   build_push:
     name: Build and push ${{ matrix.flavor }}
     runs-on: self-hosted
+    # This runner is self-hosted and privileged, so fork pull requests must
+    # never execute here: a Containerfile from an outside branch is arbitrary
+    # code on the runner host. Pull requests from branches in this repository
+    # (including Dependabot/Renovate) still build. Outside contributors' pull
+    # requests show as skipped rather than failing halfway through.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
 
     strategy:
       fail-fast: false
@@ -39,6 +45,9 @@ jobs:
     env:
       FLAVOR_DIR: images/${{ matrix.flavor }}
       IMAGE_NAME: ${{ matrix.flavor }}
+      # Repository-facing labels point at this repository, not at a per-flavor
+      # one: github.com/benleppke/bazzite-gnome does not exist.
+      REPO_NAME: ${{ github.event.repository.name }}
 
     permissions:
       contents: read
@@ -143,13 +152,13 @@ jobs:
             type=ref,event=pr
             type=ref,event=branch,enable=${{ github.event_name == 'pull_request' }}
           labels: |
-            io.artifacthub.package.readme-url=https://raw.githubusercontent.com/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}/refs/heads/main/README.md
+            io.artifacthub.package.readme-url=https://raw.githubusercontent.com/${{ github.repository_owner }}/${{ env.REPO_NAME }}/refs/heads/main/README.md
             org.opencontainers.image.created=${{ steps.date.outputs.date }}
             org.opencontainers.image.description=${{ env.IMAGE_DESC }}
-            org.opencontainers.image.documentation=https://raw.githubusercontent.com/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}/refs/heads/main/README.md
-            org.opencontainers.image.source=https://github.com/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}/blob/main/Containerfile
+            org.opencontainers.image.documentation=https://github.com/${{ github.repository_owner }}/${{ env.REPO_NAME }}/blob/main/README.md
+            org.opencontainers.image.source=https://github.com/${{ github.repository_owner }}/${{ env.REPO_NAME }}/blob/main/images/${{ matrix.flavor }}/Containerfile
             org.opencontainers.image.title=${{ env.IMAGE_NAME }}
-            org.opencontainers.image.url=https://github.com/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+            org.opencontainers.image.url=https://github.com/${{ github.repository_owner }}/${{ env.REPO_NAME }}
             org.opencontainers.image.vendor=${{ github.repository_owner }}
             org.opencontainers.image.version=${{ env.DEFAULT_TAG }}.{{date 'YYYYMMDD'}}
             io.artifacthub.package.deprecated=false

@@ -1,0 +1,25 @@
+{
+  "flavors": [
+    {
+      "name": "bazzite-gnome",
+      "display": "Bazzite GNOME",
+      "badge": null,
+      "description": "The base image: GNOME desktop with additional packages, extensions, and theming.",
+      "payload_base": "bazzite-gnome"
+    },
+    {
+      "name": "bazzite-gnome-nvidia",
+      "display": "Bazzite GNOME NVIDIA",
+      "badge": "NVIDIA",
+      "description": "The base image but also including drivers for NVIDIA GPUs.",
+      "payload_base": "bazzite-gnome"
+    },
+    {
+      "name": "bazzite-deck-gnome",
+      "display": "Bazzite Deck GNOME",
+      "badge": "Deck",
+      "description": "Handheld variant that boots directly into Steam.",
+      "payload_base": "bazzite-gnome"
+    }
+  ]
+}

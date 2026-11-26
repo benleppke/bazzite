@@ -38,6 +38,11 @@ jobs:
   build:
     name: Build disk images
     runs-on: self-hosted
+    # See build.yml: fork pull requests must never run on the self-hosted
+    # runner, and this workflow's pull_request trigger fires when the workflow
+    # file itself changes, so an outside branch could otherwise redefine the
+    # steps that run here.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     # runs-on: ${{ (inputs.platform || 'amd64') == 'amd64' && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
     strategy:
       fail-fast: false
