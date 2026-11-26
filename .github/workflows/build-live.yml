@@ -217,7 +217,7 @@ jobs:
           sha256sum "${ISO_NAME}" | tee "${ISO_NAME}.sha256"
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
 
       - name: Sign checksum
         env:
@@ -486,7 +486,7 @@ jobs:
           echo "Rendered $(wc -c < "${page}") bytes of HTML"
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
 
       # An aggregate checksum is only worth signing if every hash in it is
       # already covered by that release's own signature. Each per-ISO checksum
